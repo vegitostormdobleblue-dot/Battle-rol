@@ -390,15 +390,12 @@ textarea.inp { resize: vertical; min-height: 84px; line-height: 1.45; }
 .trace.live ol li:last-child { color: var(--in-fg); }
 .trace ol, .trace ul { margin: 6px 0 2px; padding-left: 20px; display: grid; gap: 5px; color: var(--meta); }
 .wk-body { display: grid; gap: 8px; padding: 6px 0 2px; }
-.wk-sec { margin-top: 4px; padding-bottom: 3px; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: hsl(196 70% var(--tc-l)); border-bottom: 1px solid hsl(196 70% 55% / .3); }
-.wk-entry { padding: 1px 0 1px 10px; border-left: 2px solid hsl(196 70% 55% / .55); }
-.wk-entry.branch { border-left-color: hsl(268 70% 62% / .7); }
-.wk-entry.rev { border-left-color: hsl(32 85% 55% / .75); }
+.wk-sec { margin-top: 4px; padding-bottom: 3px; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: hsl(30 75% var(--tc-l)); border-bottom: 1px solid hsl(30 75% 55% / .35); }
+.wk-entry { padding: 1px 0 1px 10px; border-left: 2px solid hsl(30 75% 55% / .6); }
 .wk-type { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--meta); }
-.wk-title { margin: 1px 0 2px; font-size: 14.5px; font-weight: 700; color: var(--in-fg); text-wrap: balance; }
-.wk-entry p, .wk-concl { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--in-fg); }
-.trace ul.wk-sources { list-style: none; margin: 0; padding: 0; gap: 4px; color: var(--in-fg); font-size: 13px; }
-.wk-src { display: inline-block; margin-right: 6px; padding: 0 6px; border-radius: 6px; font-size: 11px; font-weight: 700; background: hsl(var(--sh) 70% 50% / .16); color: hsl(var(--sh) 70% var(--tc-l)); }
+.wk-title { margin: 1px 0 2px; font-size: 14.5px; font-weight: 700; text-wrap: balance; }
+.wk-title a { color: var(--in-fg); text-decoration-color: hsl(30 75% 55% / .6); }
+.wk-entry p { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--in-fg); overflow-wrap: anywhere; }
 .trace a { color: var(--accent); }
 
 /* memories, system notes, edit bar */
@@ -1271,27 +1268,42 @@ function bubble(m, first, a) {
 }
 const ACT = k => TOOLS[k] || ({ mem: { hue: 44, icon: 'pin' } })[k] || TOOLS.seq;
 const activityHTML = act => `<div class="activity" style="--th:${ACT(act.kind).hue}">${I[ACT(act.kind).icon]}<span>${esc(act.label)}</span></div>`;
-const stepText = s => typeof s === 'string' ? s : `${s.k ? '[' + s.k + '] ' : ''}${s.t ? s.t + ': ' : ''}${s.x}`;
+/* Superpower Wiki results, organized for the bubble */
+function wikiTitles(out) {
+  try {
+    const v = JSON.parse(out);
+    const arr = Array.isArray(v) ? v : Array.isArray(v?.results) ? v.results : Array.isArray(v?.pages) ? v.pages : null;
+    if (arr) return arr.map(x => typeof x === 'string' ? x : x?.title || x?.name || '').filter(Boolean).slice(0, 6);
+  } catch {}
+  return [];
+}
+function wikiExcerpt(out) {
+  let t = String(out || '');
+  try { const v = JSON.parse(t); if (v && typeof v === 'object') t = String(v.content || v.text || v.extract || v.wikitext || v.body || JSON.stringify(v)); } catch {}
+  t = t.replace(/\[\[(?:[^\]|]*\|)?([^\]]*)\]\]/g, '$1').replace(/\{\{[^}]*\}\}/g, ' ').replace(/'{2,}/g, '').replace(/<[^>]+>/g, ' ').replace(/=+\s*([^=\n]+?)\s*=+/g, '\n$1\n');
+  const i = t.search(/\n\s*(capabilities|capacidades)\s*\n/i);
+  if (i >= 0) { t = t.slice(i).replace(/^\s*\S+\s*/, ''); const j = t.search(/\n[^\n]{1,40}\n/); if (j > 0) t = t.slice(0, j); }
+  t = t.replace(/\s+/g, ' ').trim();
+  return t.length > 320 ? t.slice(0, 320).replace(/\s+\S*$/, '') + '…' : t;
+}
+const wikiLink = t => `https://powerlisting.fandom.com/wiki/${encodeURIComponent(String(t).replace(/ /g, '_'))}`;
+function wikiHTML(m) {
+  const items = m.wk || (m.sources || []).map(title => ({ kind: 'page', title }));
+  if (!items.length) return '';
+  return `<div class="wk-body"><div class="wk-sec">Superpower Wiki</div>${items.map(w => w.kind === 'search'
+    ? `<article class="wk-entry"><div class="wk-type">Búsqueda</div><p>«${esc(w.q)}»${w.found?.length ? ' → ' + w.found.map(esc).join(', ') : ''}</p></article>`
+    : `<article class="wk-entry"><div class="wk-type">Página</div><h4 class="wk-title"><a href="${wikiLink(w.title)}" target="_blank" rel="noopener">${esc(w.title)}</a></h4>${w.ex ? `<p>${esc(w.ex)}</p>` : ''}</article>`).join('')}</div>`;
+}
 function traceHTML(m) {
   const st = m.steps || [], src = m.sources || [], wb = m.web || [];
-  if (!st.length && !src.length && !wb.length) return '';
+  if (!st.length && !src.length && !wb.length && !(m.wk || []).length) return '';
   const nq = wb.filter(w => w.kind === 'search').length;
   const live = !!m.pending;
   const sum = [st.length ? `${live ? 'pensando · ' : 'pensó en '}${st.length} paso${st.length > 1 ? 's' : ''}` : '', src.length ? `consultó ${src.length} página${src.length > 1 ? 's' : ''} de la wiki` : '', nq ? `buscó en internet ${nq} ${nq > 1 ? 'veces' : 'vez'}` : ''].filter(Boolean).join(' · ');
-  const lvl = SEQ_LEVELS[m.seqLevel]?.short;
-  const entries = st.map((s, i) => typeof s === 'string'
-    ? `<article class="wk-entry"><div class="wk-type">Paso ${i + 1}</div><p>${esc(s)}</p></article>`
-    : `<article class="wk-entry${s.b ? ' branch' : ''}${s.r ? ' rev' : ''}"><div class="wk-type">${esc(s.k || 'Paso')} · paso ${s.n || i + 1}${s.b ? ` · rama ${esc(s.b)}` : ''}${s.r ? ` · revisa el paso ${s.r}` : ''}</div>${s.t ? `<h4 class="wk-title">${esc(s.t)}</h4>` : ''}<p>${esc(s.x)}</p></article>`).join('');
-  const sources = [
-    ...src.map(t => `<li><span class="wk-src" style="--sh:30">Superpower Wiki</span><a href="https://powerlisting.fandom.com/wiki/${encodeURIComponent(t.replace(/ /g, '_'))}" target="_blank" rel="noopener">${esc(t)}</a></li>`),
-    ...wb.map(w => w.kind === 'search' ? `<li><span class="wk-src" style="--sh:150">Internet</span>Buscó: ${esc(w.q)}</li>` : `<li><span class="wk-src" style="--sh:150">Internet</span>Leyó: <a href="${esc(w.url)}" target="_blank" rel="noopener">${esc(hostOf(w.url))}</a></li>`),
-  ];
   return `<details class="trace${live ? ' live' : ''}" ${live ? 'open' : ''}><summary>${sum.charAt(0).toUpperCase() + sum.slice(1)}${live ? '' : ' · toca para ver'}</summary>
-    <div class="wk-body">
-      ${entries ? `<div class="wk-sec">Pensamiento${lvl ? ' · Sequential Thinking ' + lvl : ''}</div>${entries}` : ''}
-      ${m.concl && !live ? `<div class="wk-sec">Conclusión</div><p class="wk-concl">${esc(m.concl)}</p>` : ''}
-      ${sources.length ? `<div class="wk-sec">Fuentes</div><ul class="wk-sources">${sources.join('')}</ul>` : ''}
-    </div></details>`;
+    ${st.length ? `<ol>${st.map(t => `<li>${esc(t)}</li>`).join('')}</ol>` : ''}
+    ${wikiHTML(m)}
+    ${wb.length ? `<ul>${wb.map(w => w.kind === 'search' ? `<li>Buscó: ${esc(w.q)}</li>` : `<li>Leyó: <a href="${esc(w.url)}" target="_blank" rel="noopener">${esc(hostOf(w.url))}</a></li>`).join('')}</ul>` : ''}</details>`;
 }
 function agentInner(m, c) {
   if (m.pending && !m.text) return traceHTML(m) + (m.activity ? activityHTML(m.activity) : `<span class="typing-dots" aria-label="escribiendo"><i></i><i></i><i></i></span>`);
@@ -1586,7 +1598,7 @@ async function prethink(sample, agentId, kinds, reply, signal, markRead) {
   const ask = [];
   const mvs = activeMoves(agentId);
   if (mvs.length) ask.push(`El jugador pidió una acción de tipo: ${mvs.map(k => MOVES[k].name).join(' + ')}.`);
-  if (seq) ask.push(`Usa la herramienta ${L.tool} al menos ${L.min} veces (thoughtNumber 1, 2, 3…, nextThoughtNeeded false en el último)${lv === 'high' || lv === 'max' ? ', con al menos un camino alternativo (branchFromThought y branchId)' : ''}${lv === 'max' ? ' y revisando al menos un paso anterior (isRevision y revisesThought)' : ''} para pensar cómo responder este mensaje de un jugador de battle rol. En cada paso pon titulo (nombre corto del concepto, habilidad o idea, estilo Superpower Wiki) y tipo, y escribe el paso en tono de Superpower Wiki: claro, formal, en tercera persona ("El usuario puede…", "La condición de…"), sin relleno.`); if (seq) reply.seqLevel = lv;
+  if (seq) ask.push(`Usa la herramienta ${L.tool} al menos ${L.min} veces (thoughtNumber 1, 2, 3…, nextThoughtNeeded false en el último)${lv === 'high' || lv === 'max' ? ', con al menos un camino alternativo (branchFromThought y branchId)' : ''}${lv === 'max' ? ' y revisando al menos un paso anterior (isRevision y revisesThought)' : ''} para pensar cómo responder este mensaje de un jugador de battle rol.`);
   if (wiki) ask.push(`${seq ? 'Si' : 'Para responder este mensaje de un jugador de battle rol, si'} algún poder o habilidad necesita respaldo, búscalo con search_powerlisting y léelo con get_page (máximo 2 búsquedas).`);
   if (web) ask.push(`${seq || wiki ? 'Además, si' : 'Para responder este mensaje de un jugador de battle rol: si'} hace falta un dato que no sabes con seguridad (un personaje, una habilidad, lore, una serie o juego, algo reciente), búscalo en internet con web_search; usa web_fetch solo si los extractos no alcanzan (máximo 2 búsquedas y 1 lectura). Si no hace falta, no busques.`);
   if (mem) {
@@ -1603,14 +1615,13 @@ async function prethink(sample, agentId, kinds, reply, signal, markRead) {
   const usedWeb = (reply.web || []).length > 0;
   if (!thinking && !usedWeb) { reply.activity = null; return null; }
   const parts = [];
-  if (reply.steps.length) parts.push(`Pasos pensados con Sequential Thinking (${L.label}):\n` + reply.steps.map((t, i) => `${i + 1}. ${stepText(t)}`).join('\n'));
+  if (reply.steps.length) parts.push(`Pasos pensados con Sequential Thinking (${L.label}):\n` + reply.steps.map((t, i) => `${i + 1}. ${t}`).join('\n'));
   if (reply.sources.length) parts.push('Páginas leídas en la Superpower Wiki: ' + reply.sources.join(', '));
   if (usedWeb) {
     const qs = reply.web.filter(w => w.kind === 'search').map(w => w.q), pg = reply.web.filter(w => w.kind === 'page').map(w => w.url);
     parts.push(`Se buscó en internet${qs.length ? ': ' + qs.join('; ') : ''}${pg.length ? '\nPáginas leídas: ' + pg.join(', ') : ''}`);
   }
-  const concl = res.text.trim().replace(/^(NO|listo)\.?$/i, '');
-  if (concl) reply.concl = concl.slice(0, 1500);
+  const concl = res.text.trim().replace(/^NO\.?$/i, '');
   if (concl) parts.push('Conclusión: ' + concl.slice(0, 1500));
   return `Notas que otro agente ya pensó para este mensaje:\n${parts.join('\n\n')}\nÚsalas para responder el mensaje anterior.`;
 }
@@ -1655,9 +1666,7 @@ function buildTools(kinds, reply, agentId, onToolStart, lvOverride = null) {
     const lv = lvOverride || seqLevel(agentId), L = SEQ_LEVELS[lv];
     const branching = lv === 'high' || lv === 'max', revising = lv === 'max';
     const props = {
-      titulo: { type: 'string', description: 'Nombre corto del paso al estilo Superpower Wiki, de 2 a 5 palabras (ej. "Sustracción de Continuidad")' },
-      tipo: { type: 'string', enum: ['Lectura', 'Idea conceptual', 'Habilidad', 'Mecanismo', 'Falla del rival', 'Plan', 'Conclusión'], description: 'Qué clase de paso es' },
-      thought: { type: 'string', description: 'El paso, en tono de Superpower Wiki: claro, formal y en tercera persona ("El usuario puede…", "La condición de…")' },
+      thought: { type: 'string', description: 'Tu paso de razonamiento actual' },
       thoughtNumber: { type: 'integer', description: 'Número de este paso, desde 1' },
       totalThoughts: { type: 'integer', description: `Pasos planeados (mínimo ${L.min})` },
       nextThoughtNeeded: { type: 'boolean', description: 'Si hace falta otro paso' },
@@ -1673,19 +1682,15 @@ function buildTools(kinds, reply, agentId, onToolStart, lvOverride = null) {
     T.push({
       name: L.tool,
       description: `Sequential Thinking (${L.label}): registra un paso de tu razonamiento antes de responder. Llámalo al menos ${L.min} veces con thoughtNumber 1, 2, 3… y nextThoughtNeeded=false en el último${branching ? '; al menos un paso debe abrir un camino alternativo (branchFromThought + branchId)' : ''}${revising ? ' y al menos uno debe revisar un paso anterior (isRevision + revisesThought)' : ''}. Devuelve el estado del razonamiento.`,
-      inputSchema: { type: 'object', properties: props, required: ['titulo', 'tipo', 'thought', 'thoughtNumber', 'totalThoughts', 'nextThoughtNeeded'] },
+      inputSchema: { type: 'object', properties: props, required: ['thought', 'thoughtNumber', 'totalThoughts', 'nextThoughtNeeded'] },
       execute: async (input, { signal }) => {
         onToolStart();
         const args = { thought: String(input.thought || '').slice(0, 4000), thoughtNumber: Math.max(1, parseInt(input.thoughtNumber, 10) || 1), totalThoughts: Math.max(L.min, parseInt(input.totalThoughts, 10) || 0), nextThoughtNeeded: input.nextThoughtNeeded === true || input.nextThoughtNeeded === 'true' };
         let tag = '';
         if (branching && input.branchFromThought != null) { args.branchFromThought = parseInt(input.branchFromThought, 10) || 1; args.branchId = String(input.branchId || 'alt').slice(0, 40); tag = ` · rama "${args.branchId}"`; }
         if (revising && (input.isRevision === true || input.isRevision === 'true')) { args.isRevision = true; args.revisesThought = parseInt(input.revisesThought, 10) || 1; tag = ` · revisa el paso ${args.revisesThought}`; }
-        const step = { n: args.thoughtNumber, k: String(input.tipo || '').slice(0, 30), t: String(input.titulo || '').slice(0, 80), x: args.thought.slice(0, 900) };
-        if (args.branchId) step.b = args.branchId;
-        if (args.isRevision) step.r = args.revisesThought;
-        reply.steps.push(step);
-        if (step.t) args.thought = `${step.k ? '[' + step.k + '] ' : ''}${step.t}: ${args.thought}`;
-        setActivity(agentId, reply, 'seq', `Sequential Thinking ${L.short} · paso ${args.thoughtNumber} de ${args.totalThoughts}${step.k ? ' · ' + step.k : ''}${tag}`);
+        reply.steps.push(args.thought.slice(0, 700));
+        setActivity(agentId, reply, 'seq', `Sequential Thinking ${L.short} · paso ${args.thoughtNumber} de ${args.totalThoughts}${tag}`);
         return callConnector('seq', L.tool, args, signal, reply, 3000, false);
       },
     });
@@ -1756,7 +1761,10 @@ function buildTools(kinds, reply, agentId, onToolStart, lvOverride = null) {
         onToolStart();
         const query = String(input.query || '').slice(0, 200);
         setActivity(agentId, reply, 'wiki', `Superpower Wiki · buscando "${query}"`);
-        return callConnector('wiki', 'search_powerlisting', { query, limit: Math.min(10, Math.max(1, Number(input.limit) || 6)) }, signal, reply, 6000, true);
+        const out = await callConnector('wiki', 'search_powerlisting', { query, limit: Math.min(10, Math.max(1, Number(input.limit) || 6)) }, signal, reply, 6000, true);
+        (reply.wk ||= []).push({ kind: 'search', q: query, found: wikiTitles(out) });
+        streamUpdate(agentId, reply);
+        return out;
       },
     });
     T.push({
@@ -1769,6 +1777,8 @@ function buildTools(kinds, reply, agentId, onToolStart, lvOverride = null) {
         setActivity(agentId, reply, 'wiki', `Superpower Wiki · leyendo "${title}"`);
         const out = await callConnector('wiki', 'get_page', { title }, signal, reply, 14000, true);
         if (!reply.sources.includes(title)) reply.sources.push(title);
+        (reply.wk ||= []).push({ kind: 'page', title, ex: wikiExcerpt(out) });
+        streamUpdate(agentId, reply);
         return out;
       },
     });
@@ -2017,7 +2027,7 @@ async function runSeqTest(sheet, agentId) {
       else {
         phase = 'write';
         set(4, 'run', `Pensó ${fake.steps.length} pasos. Ahora ${a.name} escribe con su prompt completo…`);
-        const notes = fake.steps.map((t, i) => `${i + 1}. ${stepText(t)}`).join('\n');
+        const notes = fake.steps.map((t, i) => `${i + 1}. ${t}`).join('\n');
         const res = await sample([
           { role: 'user', content: buildSystem(a, [], false) },
           { role: 'user', content: msg },
