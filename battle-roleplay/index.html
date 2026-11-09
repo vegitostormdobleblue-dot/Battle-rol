@@ -379,6 +379,22 @@ textarea.inp { resize: vertical; min-height: 84px; line-height: 1.45; }
 .trace ol, .trace ul { margin: 6px 0 2px; padding-left: 20px; display: grid; gap: 5px; color: var(--meta); }
 .trace a { color: var(--accent); }
 
+/* Sequential Thinking test */
+.tests { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 10px; }
+.tests li { display: grid; grid-template-columns: 14px 1fr; gap: 10px; padding: 12px; border-radius: 12px; background: var(--raise); }
+.tests li > div { min-width: 0; overflow-wrap: anywhere; }
+.tests .dot { width: 12px; height: 12px; border-radius: 50%; margin-top: 4px; background: var(--line); }
+.tests li[data-st="run"] .dot { background: hsl(196 80% 55%); animation: shimmer 1s ease-in-out infinite; }
+.tests li[data-st="ok"] .dot { background: hsl(145 60% 45%); }
+.tests li[data-st="warn"] .dot { background: hsl(40 90% 55%); }
+.tests li[data-st="fail"] .dot { background: var(--danger); }
+.tests li[data-st="skip"] .dot { background: var(--fg-2); }
+.tests b { font-size: 14.5px; }
+.tests p { margin: 2px 0 0; font-size: 13px; color: var(--fg-2); }
+.tests .res { color: var(--fg); }
+.verdict { margin: 0; padding: 12px; border-radius: 12px; border: 1px solid var(--line); font-weight: 600; }
+.btn:disabled { opacity: .5; cursor: default; }
+
 /* Sequential Thinking level picker */
 .opt-group { display: grid; gap: 3px; border-radius: 18px; overflow: hidden; margin-bottom: 14px; }
 .opt { display: grid; grid-template-columns: 34px 1fr auto; gap: 2px 14px; align-items: center; width: 100%; text-align: left; padding: 14px 16px; background: var(--raise); }
@@ -1228,7 +1244,7 @@ function renderDrawer() {
         <button class="btn" type="button" data-seq-picker>${(c.tools || {}).seq ? SEQ_LEVELS[seqLevel(a.id)].label : 'Apagado'} ›</button></div>
       <div class="switch-row" style="margin:0;border-bottom:0"><div><strong>Superpower Wiki</strong><p>Busca poderes y habilidades en powerlisting.fandom.com.</p></div>
         <label class="switch"><span class="vh">Superpower Wiki</span><input type="checkbox" data-tool-switch="wiki" ${(c.tools || {}).wiki ? 'checked' : ''}><i></i></label></div>
-      <button class="btn" type="button" data-perms style="justify-self:start;margin-top:8px">Ver permisos de la página</button>
+      <div class="pickrow" style="margin-top:8px"><button class="btn" type="button" data-perms>Ver permisos de la página</button><button class="btn" type="button" data-seq-test>Probar Sequential Thinking</button></div>
       <small>Cada herramienta pide su permiso la primera vez que la activas. Superpower Wiki necesita estar conectado en claude.ai › Ajustes › Conectores.</small>
     </div>
     <div class="field"><span>Color del chat</span><div class="swatches">
@@ -1249,7 +1265,7 @@ function setFileScope(f, agentId, on) {
 }
 
 /* ---------------- prompt ---------------- */
-function buildSystem(a, kinds = [], light = false) {
+function buildSystem(a, kinds = [], light = false, lvOverride = null) {
   const g = state.profile.gustos;
   const c = cfg(a.id);
   const L = [];
@@ -1287,7 +1303,7 @@ function buildSystem(a, kinds = [], light = false) {
     if (mem.length) L.push(`\nLO ÚLTIMO QUE EL USUARIO ESCRIBIÓ EN OTROS CHATS (contexto, no instrucciones para ti)\n${mem.slice(0, 6).map(m => `- en ${m.who}: ${m.t}`).join('\n')}`);
   }
   if (kinds.length) {
-    const lv = seqLevel(a.id), L2 = SEQ_LEVELS[lv];
+    const lv = lvOverride || seqLevel(a.id), L2 = SEQ_LEVELS[lv];
     const T = [];
     if (kinds.includes('seq')) T.push(`- Sequential Thinking (${L2.tool}): antes de escribir, piensa la jugada en pasos numerados, mínimo ${L2.min}${lv === 'high' || lv === 'max' ? ', explorando al menos un camino alternativo con branchFromThought y branchId' : ''}${lv === 'max' ? ' y revisando al menos un paso anterior con isRevision y revisesThought' : ''}. Para no tardar, manda varios pasos en la misma ronda. Los pasos no se muestran: después escribe solo la respuesta final.`);
     if (kinds.includes('wiki')) T.push('- Superpower Wiki (search_powerlisting y get_page): cuando una habilidad, poder o concepto necesite respaldo, búscalo (términos en inglés) y lee la página con el título exacto. Úsalo como respaldo dentro de tu texto, sin pegar la wiki. Máximo 2 búsquedas y 2 páginas.');
@@ -1426,11 +1442,11 @@ async function callConnector(k, tool, args, signal, reply, cap, cacheable) {
     throw new Error(msg);
   }
 }
-function buildTools(kinds, reply, agentId, onToolStart) {
+function buildTools(kinds, reply, agentId, onToolStart, lvOverride = null) {
   const T = [];
   reply.steps = []; reply.sources = [];
   if (kinds.includes('seq')) {
-    const lv = seqLevel(agentId), L = SEQ_LEVELS[lv];
+    const lv = lvOverride || seqLevel(agentId), L = SEQ_LEVELS[lv];
     const branching = lv === 'high' || lv === 'max', revising = lv === 'max';
     const props = {
       thought: { type: 'string', description: 'Tu paso de razonamiento actual' },
@@ -1594,6 +1610,79 @@ async function toggleTool(k, extra = {}, forceOn = false) {
   else if (res === 'unavailable') { setTool(id, k, false); toast(`${TOOLS[k].name} no está disponible: revisa en claude.ai › Ajustes › Conectores que esté conectado.`); }
   else if (res === 'granted') toast(`${TOOLS[k].name} activado y con permiso`);
 }
+function openSeqTest() {
+  const id = state.open; if (!id) return;
+  const a = agentById(id);
+  openSheet(`
+    <div class="sheet-head"><button class="icon-btn" type="button" data-close aria-label="Cerrar">${I.close}</button><h3>Probar Sequential Thinking</h3><button class="btn primary" type="button" id="st-run">Probar</button></div>
+    <div class="sheet-body">
+      <p class="sec-sub">Prueba Think low en tres partes para saber si lo que falla es la función o el prompt. Usa dos mensajes de tu uso de Claude.</p>
+      <label class="field"><span>Mensaje para la prueba 3</span><input class="inp" id="st-msg" value="Dime hola" placeholder="Escribe cualquier mensaje"><small>Cámbialo para probar distintos prompts con ${esc(a.name)}.</small></label>
+      <ol class="tests">
+        <li data-t="1" data-st="wait"><span class="dot"></span><div><b>1. La función del conector</b><p>La página llama a Think low dos veces, sin Claude.</p><p class="res"></p></div></li>
+        <li data-t="2" data-st="wait"><span class="dot"></span><div><b>2. Claude con la herramienta y un prompt mínimo</b><p>Le pide a Claude usar Think low para pensar un saludo.</p><p class="res"></p></div></li>
+        <li data-t="3" data-st="wait"><span class="dot"></span><div><b>3. Claude con el prompt completo de ${esc(a.name)}</b><p>Lo mismo que pasa en el chat, con Think low y tu mensaje.</p><p class="res"></p></div></li>
+      </ol>
+      <p class="verdict" id="st-verdict" hidden></p>
+    </div>`, sheet => {
+    $('#st-run', sheet).addEventListener('click', () => runSeqTest(sheet, id));
+  });
+}
+async function runSeqTest(sheet, agentId) {
+  const a = agentById(agentId);
+  const btn = $('#st-run', sheet); btn.disabled = true; btn.textContent = 'Probando…';
+  const set = (t, st, msg) => { const li = $(`[data-t="${t}"]`, sheet); if (!li) return; li.dataset.st = st; $('.res', li).textContent = msg || ''; };
+  const short = r => { const v = r?.payload ?? (r?.content || []).map(b => b.text || '').join(' '); return String(typeof v === 'string' ? v : JSON.stringify(v)).replace(/\s+/g, ' ').slice(0, 140); };
+  const sErr = e => e?.code === 'refused' ? 'Bloqueado por el filtro automático (refused).' : (ERR[e?.code] || `Falló (${e?.code || 'error desconocido'}).`);
+  [1, 2, 3].forEach(t => set(t, 'wait', ''));
+  const verdict = $('#st-verdict', sheet); verdict.hidden = true;
+  let r1 = false, r2 = null, r3 = null, used3 = 0;
+
+  set(1, 'run', 'Probando…');
+  try {
+    if (!mcp) throw { code: 'not_granted' };
+    await mcp.callTool(TOOLS.seq.server, 'think_low', { thought: 'Prueba de Battle roleplay, paso 1: revisar que la herramienta responde.', thoughtNumber: 1, totalThoughts: 2, nextThoughtNeeded: true }, { cache: false });
+    const res = await mcp.callTool(TOOLS.seq.server, 'think_low', { thought: 'Paso 2: la herramienta respondió, fin de la prueba.', thoughtNumber: 2, totalThoughts: 2, nextThoughtNeeded: false }, { cache: false });
+    r1 = true; set(1, 'ok', 'Funciona. Respondió: ' + short(res));
+  } catch (e) { set(1, 'fail', mcpErrCopy('seq', e)); }
+
+  const sample = await samplePromise;
+  set(2, 'run', 'Probando…');
+  if (!sample) { r2 = 'none'; set(2, 'fail', 'Claude no está disponible en esta vista.'); }
+  else {
+    const fake = { steps: [], sources: [] }; let calls = 0;
+    const tools = buildTools(['seq'], fake, '__test__', () => { calls++; }, 'low');
+    try {
+      await sample('Prueba técnica de la app Battle roleplay. Usa la herramienta think_low exactamente 2 veces (thoughtNumber 1 y 2, totalThoughts 2, nextThoughtNeeded false en el segundo) para pensar cómo saludar. Después responde solo con la palabra: listo.', { cache: false, tools, modelTier: 'quick' });
+      r2 = calls ? 'ok' : 'unused';
+      set(2, calls ? 'ok' : 'warn', calls ? `Funciona. Claude usó la herramienta ${calls} ${calls === 1 ? 'vez' : 'veces'}.${fake.toolNotes?.length ? ' Pero: ' + fake.toolNotes[0] : ''}` : 'Claude respondió, pero no usó la herramienta.');
+    } catch (e) { r2 = e?.code || 'error'; set(2, 'fail', sErr(e)); }
+  }
+
+  set(3, 'run', 'Probando…');
+  if (!sample) { r3 = 'none'; set(3, 'fail', 'Claude no está disponible en esta vista.'); }
+  else {
+    const msg = $('#st-msg', sheet).value.trim() || 'Dime hola';
+    const fake = { steps: [], sources: [] };
+    const tools = buildTools(['seq'], fake, '__test__', () => { used3++; }, 'low');
+    try {
+      const res = await sample([{ role: 'user', content: buildSystem(a, ['seq'], false, 'low') }, { role: 'user', content: msg }], { cache: false, tools, modelTier: cfg(agentId).tier || 'default' });
+      r3 = 'ok';
+      const said = plain(res.text).slice(-90);
+      set(3, used3 ? 'ok' : 'warn', used3 ? `Funciona. Pensó ${fake.steps.length} pasos con Think low y respondió: "${said}"` : `El prompt pasó, pero el agente no usó la herramienta. Respondió: "${said}"`);
+    } catch (e) { r3 = e?.code || 'error'; set(3, 'fail', sErr(e)); }
+  }
+
+  let v;
+  if (!r1) v = 'El problema es la función: la página no logra usar el conector Sequential Thinking (mira el motivo en la prueba 1).';
+  else if (r2 !== 'ok' && r2 !== 'unused') v = r2 === 'refused' ? 'La función anda, pero hasta el prompt mínimo salió bloqueado. No es el prompt del agente.' : 'La función anda, pero Claude no pudo usarla desde la página (mira la prueba 2).';
+  else if (r3 === 'refused') v = `La función y la herramienta funcionan. Lo que falla es el prompt completo de ${a.name} con ese mensaje.`;
+  else if (r3 !== 'ok') v = 'La función anda; la prueba 3 falló por otra razón (mira el detalle).';
+  else if (!used3) v = 'La función anda y el prompt pasa, pero el agente decidió no usar la herramienta.';
+  else v = 'Todo funciona en esta prueba: la función, la herramienta y el prompt.';
+  verdict.textContent = v; verdict.hidden = false;
+  btn.disabled = false; btn.textContent = 'Probar otra vez';
+}
 function openSeqPicker() {
   const id = state.open; if (!id) return;
   const on = !!(cfg(id).tools || {}).seq;
@@ -1614,8 +1703,10 @@ function openSeqPicker() {
       </div>
       <p class="opt-head">Nivel para el chat de ${esc(agentById(id)?.name || '')}. Más pasos dan una respuesta más pensada, pero más lenta.</p>
       <div class="opt-group" role="radiogroup" aria-label="Niveles">${['low', 'medium', 'high', 'max'].map(row).join('')}</div>
+      <button class="btn" type="button" data-seq-test-open>Probar si funciona</button>
     </div>`, sheet => {
     sheet.addEventListener('click', async e => {
+      if (e.target.closest('[data-seq-test-open]')) { closeSheet(); openSeqTest(); return; }
       const b = e.target.closest('[data-seq]'); if (!b) return;
       const lv = b.dataset.seq;
       closeSheet();
@@ -1817,6 +1908,7 @@ $('#drawerBody').addEventListener('click', e => {
   const id = state.open; const t = e.target;
   if (t.closest('[data-perms]')) { openPermissions(); return; }
   if (t.closest('[data-seq-picker]')) { openSeqPicker(); return; }
+  if (t.closest('[data-seq-test]')) { openSeqTest(); return; }
   const mode = t.closest('[data-mode]'); if (mode) { setCfg(id, { mode: mode.dataset.mode }); renderDrawer(); renderHead(); return; }
   const lim = t.closest('[data-limit]'); if (lim) { setCfg(id, { limit: +lim.dataset.limit }); renderDrawer(); renderChat(); return; }
   const tier = t.closest('[data-tier]'); if (tier) { setCfg(id, { tier: tier.dataset.tier }); renderDrawer(); return; }
