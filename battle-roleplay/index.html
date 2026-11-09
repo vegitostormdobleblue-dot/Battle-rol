@@ -1327,7 +1327,7 @@ const ERR = {
   prompt_too_large: 'El chat y los archivos son demasiado largos. Desactiva algunos archivos o vacía el chat.',
   empty_completion: 'El agente no escribió nada. Cambia un poco el mensaje y reenvíalo.',
   tools_unavailable: 'Esta vista no puede usar herramientas. Apágalas tocando su chip y reenvía.',
-  refused: 'Un filtro automático bloqueó la respuesta dos veces. A veces pasa por error: toca Reintentar, o cambia un poco el mensaje.',
+  refused: 'El agente no pudo responder a esto. Toca Reintentar o cambia un poco el mensaje.',
 };
 const RETRYABLE = new Set(['rate_limited', 'session_expired', 'upstream_error', 'empty_completion', 'timeout']);
 async function generate(agentId, images) {
@@ -1369,16 +1369,7 @@ async function generate(agentId, images) {
     },
   });
   try {
-    let res;
-    try { res = await ask(false); }
-    catch (e) {
-      if (e?.code !== 'refused') throw e;
-      /* a block on harmless text: try once more without guides, files, memory or tools */
-      raw = ''; mark = 0; reply.text = ''; reply.activity = null; reply.steps = []; reply.sources = [];
-      streamUpdate(agentId, reply);
-      res = await ask(true);
-      reply.note = 'El primer intento fue bloqueado por un filtro automático; respondió sin guías, archivos ni memoria.';
-    }
+    const res = await ask(false);
     reply.text = res.text.slice(mark).trim() || res.text.trim();
     if (res.truncated) reply.note = 'Se cortó por largo. Escríbele "sigue" para que termine.';
   } catch (e) {
