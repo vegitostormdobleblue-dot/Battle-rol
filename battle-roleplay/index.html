@@ -168,6 +168,8 @@ svg { display: block; flex: none; }
   background: var(--accent-fill); color: var(--on-accent); font-size: 12.5px; font-weight: 700;
   display: grid; place-items: center; font-variant-numeric: tabular-nums;
 }
+.row.new .av { background: var(--accent-fill); color: var(--on-accent); }
+.row.new .row-prev { grid-column: 2 / -1; }
 .row-tag { justify-self: end; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--fg-2); }
 
 .av {
@@ -395,14 +397,15 @@ textarea.inp { resize: vertical; min-height: 84px; line-height: 1.45; }
   background: var(--panel); border-radius: 16px; overflow: hidden; box-shadow: 0 18px 50px hsl(var(--h) 30% 4% / .35);
 }
 .sheet-head { display: flex; align-items: center; gap: 10px; padding: 12px 12px 12px 18px; border-bottom: 1px solid var(--line); }
-.sheet-head h3 { margin: 0; flex: 1; font: 700 19px/1.2 var(--font-display); }
+.sheet-head h3 { margin: 0; flex: 1; min-width: 0; font: 700 19px/1.2 var(--font-display); }
+.sheet-head .btn.primary { flex: none; }
 .sheet-body { overflow-y: auto; padding: 16px 18px; }
 .sheet-foot { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; padding: 12px 18px; border-top: 1px solid var(--line); }
 .sheet-foot .grow { margin-right: auto; }
 textarea.big { min-height: 260px; font-size: 14px; }
 @media (max-width: 600px) {
-  .sheet-wrap { padding: 0; align-items: end; }
-  .sheet { width: 100%; max-height: 94%; border-radius: 16px 16px 0 0; }
+  .sheet-wrap { padding: 0; align-items: stretch; }
+  .sheet { width: 100%; max-height: none; height: 100%; border-radius: 0; }
 }
 .toast {
   position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 30;
@@ -919,8 +922,11 @@ function dbWrite(key, getOp) {
 async function runWriter(w) {
   if (w.running) { w.again = true; return; }
   w.running = true;
-  try { const op = w.op(); if (op.del) await op.ref.delete(); else await op.ref.set(op.data); }
-  catch (e) { if (e?.code === 'quota_exceeded') toast('Se llenó el espacio guardado. Vacía algún chat o borra archivos.'); }
+  try { const op = w.op(); if (op.del) await op.ref.delete(); else await op.ref.set(JSON.parse(JSON.stringify(op.data))); }
+  catch (e) {
+    if (e?.code === 'quota_exceeded') toast('Se llenó el espacio guardado. Vacía algún chat o borra archivos.');
+    else if (e?.code === 'invalid_argument') toast('No se pudo guardar en tu cuenta; queda guardado en este navegador.');
+  }
   finally { w.running = false; if (w.again) { w.again = false; runWriter(w); } }
 }
 const profileRef = () => db.doc(base + '/profile');
@@ -1035,7 +1041,10 @@ function renderList() {
       <span class="row-name">${esc(a.name)}</span><span class="row-date ${unread ? 'hot' : ''}">${listDate(m?.ts)}</span>
       ${prev}${right}</button></li>`;
   }).join('');
-  $('#chatList').innerHTML = html || `<li class="pane-pad empty-note">Ningún agente coincide.</li>`;
+  const newRow = state.filter === 'all' && !q ? `<li><button class="row new" type="button" data-new-agent>
+      <span class="av" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
+      <span class="row-name">Nuevo agente</span><span></span><div class="row-prev"><span>Créalo con tu nombre, color e instrucciones</span></div></button></li>` : '';
+  $('#chatList').innerHTML = newRow + (html || `<li class="pane-pad empty-note">Ningún agente coincide.</li>`);
 }
 
 /* ---------------- render: chat ---------------- */
@@ -1190,6 +1199,10 @@ function renderDrawer() {
     <div class="field"><span>Archivos que lee</span><div class="check-list">
       ${files.length ? files.map(f => `<label class="check"><input type="checkbox" data-fscope="${f.id}" ${reads(f, a.id) ? 'checked' : ''}><span>${esc(f.name)}</span></label>`).join('') : '<p class="empty-note">Todavía no hay archivos.</p>'}
     </div></div>
+    <div class="field"><span>Herramientas</span>
+      ${Object.keys(TOOLS).map(k => `<div class="switch-row" style="margin:0;border-bottom:0"><div><strong>${TOOLS[k].name}</strong><p>${k === 'seq' ? 'Piensa la jugada en pasos antes de responder.' : 'Busca poderes y habilidades en powerlisting.fandom.com.'}</p></div>
+        <label class="switch"><span class="vh">${TOOLS[k].name}</span><input type="checkbox" data-tool-switch="${k}" ${(c.tools || {})[k] ? 'checked' : ''}><i></i></label></div>`).join('')}
+    </div>
     <div class="field"><span>Color del chat</span><div class="swatches">
       ${HUES.map(h => `<button type="button" class="sw" style="--sh:${h}" data-hue="${h}" aria-label="Color ${h}" aria-pressed="${hueOf(a) === h}"></button>`).join('')}</div></div>
     <div class="danger-zone">
@@ -1447,7 +1460,8 @@ async function send() {
   if (!text && !state.pending.length) return;
   const files = state.pending.map(p => ({ name: p.name, kind: p.kind, text: p.text, local: p.local, blob: p.blob }));
   const images = files.filter(f => f.kind === 'image').map(f => f.blob);
-  const msg = { id: rid(), role: 'user', text, ts: Date.now(), files: files.length ? files.map(({ blob, ...f }) => f) : undefined };
+  const msg = { id: rid(), role: 'user', text, ts: Date.now() };
+  if (files.length) msg.files = files.map(({ blob, ...f }) => f);
   chatOf(id).push(msg);
   ta.value = ''; autosize();
   state.pending = []; renderAttach();
@@ -1558,17 +1572,13 @@ function fileEditor(fileId) {
   const pickHtml = () => `<button type="button" class="pick" data-sc="all" aria-pressed="${f.scope === 'all'}">Todos</button>` +
     list.map(a => `<button type="button" class="pick" data-sc="${a.id}" aria-pressed="${f.scope !== 'all' && f.scope.includes(a.id)}">${esc(a.name)}</button>`).join('');
   openSheet(`
-    <div class="sheet-head"><h3>${existing ? (ro ? 'Guía' : 'Editar archivo') : 'Nuevo archivo'}</h3><button class="icon-btn" type="button" data-close aria-label="Cerrar">${I.close}</button></div>
+    <div class="sheet-head"><button class="icon-btn" type="button" data-close aria-label="Cerrar sin guardar">${I.close}</button><h3>${existing ? (ro ? 'Guía' : 'Editar archivo') : 'Nuevo archivo'}</h3><button class="btn primary keep-focus" type="button" id="fe-save">Guardar</button></div>
     <div class="sheet-body">
       <label class="field"><span>Nombre</span><input class="inp" id="fe-name" value="${esc(f.name)}" ${ro ? 'readonly' : ''} placeholder="Ej: Ficha de makima sukuna"></label>
       <label class="field"><span>Contenido</span><textarea class="inp big" id="fe-text" ${ro ? 'readonly' : ''} placeholder="Habilidades, stats, pasivas, lore, lo que el agente deba saber">${esc(f.text)}</textarea><small id="fe-count"></small></label>
       <div class="field"><span>Quién lo lee</span><div class="pickrow" id="fe-scope">${pickHtml()}</div></div>
     </div>
-    <div class="sheet-foot">
-      ${existing && !ro ? `<button class="btn danger grow" type="button" data-confirm="delfile">Borrar</button>` : ''}
-      <button class="btn" type="button" data-close>Cancelar</button>
-      <button class="btn primary" type="button" id="fe-save">Guardar</button>
-    </div>`, sheet => {
+    ${existing && !ro ? `<div class="sheet-foot"><button class="btn danger grow" type="button" data-confirm="delfile">Borrar archivo</button></div>` : ''}`, sheet => {
     const count = () => { $('#fe-count', sheet).textContent = `${nf.format(countChars($('#fe-text', sheet).value))} caracteres`; };
     count();
     $('#fe-text', sheet).addEventListener('input', count);
@@ -1605,7 +1615,7 @@ function fileEditor(fileId) {
 function agentEditor() {
   let hue = HUES[8], baseId = 'simple';
   openSheet(`
-    <div class="sheet-head"><h3>Nuevo agente</h3><button class="icon-btn" type="button" data-close aria-label="Cerrar">${I.close}</button></div>
+    <div class="sheet-head"><button class="icon-btn" type="button" data-close aria-label="Cerrar sin crear">${I.close}</button><h3>Nuevo agente</h3><button class="btn primary keep-focus" type="button" id="na-save">Crear</button></div>
     <div class="sheet-body">
       <label class="field"><span>Nombre</span><input class="inp" id="na-name" placeholder="Ej: Rival Gojo, Juez, Lore JJK"></label>
       <label class="field"><span>Trabaja como</span><select class="inp" id="na-base">${BASE.map(b => `<option value="${b.id}">${esc(b.name)} · ${esc(b.blurb)}</option>`).join('')}</select></label>
@@ -1613,7 +1623,7 @@ function agentEditor() {
       <label class="field"><span>Instrucciones</span><textarea class="inp" id="na-instr" rows="5" placeholder="Todo lo que este agente debe saber o hacer siempre"></textarea></label>
       <div class="field"><span>Color</span><div class="swatches" id="na-hue">${HUES.map(h => `<button type="button" class="sw" style="--sh:${h}" data-h="${h}" aria-label="Color ${h}" aria-pressed="${h === hue}"></button>`).join('')}</div></div>
     </div>
-    <div class="sheet-foot"><button class="btn" type="button" data-close>Cancelar</button><button class="btn primary" type="button" id="na-save">Crear agente</button></div>`, sheet => {
+    `, sheet => {
     $('#na-hue', sheet).addEventListener('click', e => {
       const b = e.target.closest('[data-h]'); if (!b) return;
       hue = +b.dataset.h; $$('[data-h]', sheet).forEach(x => x.setAttribute('aria-pressed', String(+x.dataset.h === hue)));
@@ -1621,10 +1631,12 @@ function agentEditor() {
     $('#na-save', sheet).addEventListener('click', () => {
       const name = $('#na-name', sheet).value.trim();
       if (!name) { $('#na-name', sheet).focus(); toast('Ponle un nombre al agente.'); return; }
-      baseId = $('#na-base', sheet).value;
+      baseId = $('#na-base', sheet).value || 'simple';
       const id = 'c-' + rid();
-      state.profile.agents.push({ id, name, base: baseId, hue, blurb: $('#na-blurb', sheet).value.trim(), instr: $('#na-instr', sheet).value.trim() });
-      saveProfile(); closeSheet(); setTab('chats'); openChat(id); toast('Agente creado');
+      state.profile.agents.push({ id, name: name.slice(0, 60), base: baseId, hue, blurb: $('#na-blurb', sheet).value.trim().slice(0, 120), instr: $('#na-instr', sheet).value.trim().slice(0, 6000) });
+      saveProfile(); closeSheet(); setTab('chats');
+      try { openChat(id); } catch { renderList(); }
+      toast(`Agente "${name}" creado`);
     });
     $('#na-name', sheet).focus();
   });
@@ -1645,11 +1657,16 @@ $('#g-memoria').addEventListener('change', e => { state.profile.gustos.memoria =
 let lastFocus = null;
 function openSheet(html, mount) {
   lastFocus = document.activeElement;
-  const s = $('#sheet'); s.innerHTML = html; $('#sheetWrap').hidden = false;
+  const s = $('#sheet'); s.innerHTML = html; s.dataset.dirty = '';
+  $('#sheetWrap').hidden = false;
+  s.addEventListener('input', () => { s.dataset.dirty = '1'; }, { once: true });
   mount?.(s);
 }
 function closeSheet() { $('#sheetWrap').hidden = true; $('#sheet').innerHTML = ''; lastFocus?.focus?.(); }
-$('#sheetWrap').addEventListener('click', e => { if (e.target.id === 'sheetWrap' || e.target.closest('[data-close]')) closeSheet(); });
+$('#sheetWrap').addEventListener('click', e => {
+  if (e.target.closest('[data-close]')) return closeSheet();
+  if (e.target.id === 'sheetWrap') { if ($('#sheet').dataset.dirty) toast('Toca Guardar, o la X para descartar.'); else closeSheet(); }
+});
 let toastTimer;
 function toast(t) { const el = $('#toast'); el.textContent = t; el.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.hidden = true; }, 2600); }
 
@@ -1686,7 +1703,10 @@ $('#filters').addEventListener('click', e => {
   renderList();
 });
 $('#q').addEventListener('input', e => { state.q = e.target.value; renderList(); });
-$('#chatList').addEventListener('click', e => { const b = e.target.closest('[data-open]'); if (b) openChat(b.dataset.open); });
+$('#chatList').addEventListener('click', e => {
+  if (e.target.closest('[data-new-agent]')) return agentEditor();
+  const b = e.target.closest('[data-open]'); if (b) openChat(b.dataset.open);
+});
 $('#fabNew').addEventListener('click', agentEditor);
 $('#btnBack').addEventListener('click', closeChat);
 const toggleDrawer = () => { state.drawer = !state.drawer; if (state.drawer) renderDrawer(); else $('#drawer').hidden = true; };
@@ -1704,6 +1724,7 @@ $('#drawerBody').addEventListener('click', e => {
 $('#drawerBody').addEventListener('change', e => {
   const t = e.target; const id = state.open;
   if (t.dataset.fscope) { const f = allFiles().find(x => x.id === t.dataset.fscope); if (f) setFileScope(f, id, t.checked); }
+  if (t.dataset.toolSwitch) { const k = t.dataset.toolSwitch; if (!!(cfg(id).tools || {})[k] !== t.checked) toggleTool(k); t.checked = !!(cfg(id).tools || {})[k]; }
   if (t.id === 'd-limit') { setCfg(id, { limit: Math.max(0, parseInt(t.value, 10) || 0) }); renderDrawer(); renderChat(); }
 });
 let cfgTimer;
@@ -1762,6 +1783,22 @@ $('#attachRow').addEventListener('click', e => {
   state.pending = state.pending.filter(p => p.id !== b.dataset.unpend); renderAttach();
 });
 $('#composer').addEventListener('submit', e => { e.preventDefault(); send(); });
+document.addEventListener('mousedown', e => {
+  if (e.target.closest('#btnSend, #btnClip, .tchip, .sugg, .keep-focus, #attachMenu .menu-item')) e.preventDefault();
+});
+/* phones: fit the app to the visible area when the keyboard opens */
+if (window.visualViewport) {
+  const fit = () => {
+    const vv = window.visualViewport;
+    const kb = innerHeight - vv.height > 80;
+    const root = getComputedStyle(document.documentElement);
+    const pad = (parseFloat(root.paddingTop) || 0) + (parseFloat(root.paddingBottom) || 0);
+    $('#app').style.height = kb ? Math.max(240, vv.height - pad) + 'px' : '';
+    if (kb) window.scrollTo(0, 0);
+    if (kb && state.open) { const box = $('#msgs'); box.scrollTop = box.scrollHeight; }
+  };
+  visualViewport.addEventListener('resize', fit);
+}
 const ta = $('#input');
 function autosize() { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 220) + 'px'; }
 ta.addEventListener('input', autosize);
