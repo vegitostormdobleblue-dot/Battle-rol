@@ -1,0 +1,1565 @@
+<title>Battle roleplay</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: messenger shell. Chat list on the left (bottom tabs Chats / Archivos / Gustos), the open agent's chat on the right.
+   The whole app re-tints to the open agent: --h is that agent's hue, every color below derives from it. */
+:root {
+  --h: 158;
+  --font-display: "Chakra Petch", "Bahnschrift", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "Figtree", "Segoe UI", Roboto, "Helvetica Neue", system-ui, sans-serif;
+  --gl: max(16px, env(safe-area-inset-left, 0px));
+  --gr: max(16px, env(safe-area-inset-right, 0px));
+
+  --bg: hsl(var(--h) 16% 98%);
+  --panel: hsl(var(--h) 20% 99.5%);
+  --raise: hsl(var(--h) 16% 93.5%);
+  --line: hsl(var(--h) 14% 88%);
+  --fg: hsl(var(--h) 28% 10%);
+  --fg-2: hsl(var(--h) 9% 40%);
+  --accent: hsl(var(--h) 72% 30%);
+  --accent-fill: hsl(var(--h) 62% 33%);
+  --on-accent: hsl(0 0% 100%);
+  --chat-bg: hsl(var(--h) 24% 90%);
+  --wall-ink: hsl(var(--h) 35% 30% / .11);
+  --out: hsl(var(--h) 58% 86%);
+  --out-fg: hsl(var(--h) 35% 11%);
+  --in: hsl(var(--h) 20% 99.5%);
+  --in-fg: hsl(var(--h) 28% 10%);
+  --meta: hsl(var(--h) 9% 40%);
+  --danger: hsl(358 68% 42%);
+  --danger-bg: hsl(358 80% 95%);
+  --scrim: hsl(var(--h) 30% 8% / .45);
+  --shadow: 0 1px 1px hsl(var(--h) 30% 15% / .14);
+  --av-s: 50%; --av-l: 86%; --av-fl: 26%;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: hsl(var(--h) 24% 5.5%);
+    --panel: hsl(var(--h) 22% 7.5%);
+    --raise: hsl(var(--h) 15% 13.5%);
+    --line: hsl(var(--h) 15% 15%);
+    --fg: hsl(var(--h) 14% 91%);
+    --fg-2: hsl(var(--h) 9% 63%);
+    --accent: hsl(var(--h) 66% 63%);
+    --accent-fill: hsl(var(--h) 60% 58%);
+    --on-accent: hsl(var(--h) 45% 7%);
+    --chat-bg: hsl(var(--h) 26% 6%);
+    --wall-ink: hsl(var(--h) 40% 75% / .065);
+    --out: hsl(var(--h) 44% 20%);
+    --out-fg: hsl(var(--h) 18% 94%);
+    --in: hsl(var(--h) 15% 12.5%);
+    --in-fg: hsl(var(--h) 14% 91%);
+    --meta: hsl(var(--h) 9% 63%);
+    --danger: hsl(358 80% 70%);
+    --danger-bg: hsl(358 40% 16%);
+    --scrim: hsl(var(--h) 30% 2% / .62);
+    --shadow: 0 1px 1px hsl(0 0% 0% / .35);
+    --av-s: 38%; --av-l: 22%; --av-fl: 74%;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: hsl(var(--h) 24% 5.5%);
+  --panel: hsl(var(--h) 22% 7.5%);
+  --raise: hsl(var(--h) 15% 13.5%);
+  --line: hsl(var(--h) 15% 15%);
+  --fg: hsl(var(--h) 14% 91%);
+  --fg-2: hsl(var(--h) 9% 63%);
+  --accent: hsl(var(--h) 66% 63%);
+  --accent-fill: hsl(var(--h) 60% 58%);
+  --on-accent: hsl(var(--h) 45% 7%);
+  --chat-bg: hsl(var(--h) 26% 6%);
+  --wall-ink: hsl(var(--h) 40% 75% / .065);
+  --out: hsl(var(--h) 44% 20%);
+  --out-fg: hsl(var(--h) 18% 94%);
+  --in: hsl(var(--h) 15% 12.5%);
+  --in-fg: hsl(var(--h) 14% 91%);
+  --meta: hsl(var(--h) 9% 63%);
+  --danger: hsl(358 80% 70%);
+  --danger-bg: hsl(358 40% 16%);
+  --scrim: hsl(var(--h) 30% 2% / .62);
+  --shadow: 0 1px 1px hsl(0 0% 0% / .35);
+  --av-s: 38%; --av-l: 22%; --av-fl: 74%;
+  color-scheme: dark;
+}
+
+html { height: 100%; box-sizing: border-box; }
+*, *::before, *::after { box-sizing: inherit; }
+body {
+  height: 100%; margin: 0; overflow: hidden;
+  background: var(--bg); color: var(--fg);
+  font: 400 15px/1.4 var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: 0; padding: 0; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+svg { display: block; flex: none; }
+.ico { width: 22px; height: 22px; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.app {
+  height: 100%; display: grid; grid-template-columns: 1fr; overflow: hidden;
+  transition: background-color .35s ease;
+}
+@media (min-width: 860px) {
+  .app { grid-template-columns: minmax(320px, 400px) 1fr; }
+  .side { border-right: 1px solid var(--line); }
+  .back-btn { display: none !important; }
+}
+@media (max-width: 859.98px) {
+  .app[data-view="chat"] .side { display: none; }
+  .app[data-view="list"] .chat { display: none; }
+}
+
+/* ---------- sidebar ---------- */
+.side { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--panel); position: relative; }
+.side-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px var(--gr) 10px var(--gl);
+}
+.brand {
+  margin: 0; font: 700 23px/1.1 var(--font-display); letter-spacing: .01em; color: var(--accent);
+  display: flex; align-items: center; gap: 8px;
+}
+.brand svg { width: 26px; height: 26px; }
+.icon-btn {
+  width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: var(--fg-2);
+}
+.icon-btn:hover { background: var(--raise); color: var(--fg); }
+.pane { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.pane-pad { padding: 4px var(--gr) 24px var(--gl); }
+
+.search {
+  margin: 2px var(--gr) 10px var(--gl); display: flex; align-items: center; gap: 10px;
+  background: var(--raise); border-radius: 22px; padding: 0 14px; height: 42px; color: var(--fg-2);
+}
+.search input { flex: 1; min-width: 0; border: 0; background: transparent; outline: none; color: var(--fg); }
+.search input::placeholder { color: var(--fg-2); }
+.chips { display: flex; gap: 8px; padding: 0 var(--gr) 8px var(--gl); flex-wrap: wrap; }
+.chip {
+  padding: 6px 13px; border-radius: 18px; background: var(--raise); color: var(--fg-2);
+  font-size: 13.5px; font-weight: 500; border: 1px solid transparent;
+}
+.chip[aria-pressed="true"] { background: color-mix(in srgb, var(--accent-fill) 22%, var(--panel)); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
+
+.chat-list { list-style: none; margin: 0; padding: 0 0 96px; }
+.row {
+  display: grid; grid-template-columns: 50px 1fr auto; gap: 2px 14px; align-items: center;
+  width: 100%; text-align: left; padding: 10px var(--gr) 10px var(--gl);
+}
+.row:hover { background: var(--raise); }
+.row[aria-current="true"] { background: color-mix(in srgb, var(--accent-fill) 13%, var(--panel)); }
+.row .av { grid-row: span 2; }
+.row-name { font-weight: 600; font-size: 16.5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-date { font-size: 12.5px; color: var(--fg-2); font-variant-numeric: tabular-nums; justify-self: end; }
+.row-date.hot { color: var(--accent); font-weight: 600; }
+.row-prev { display: flex; align-items: center; gap: 4px; min-width: 0; color: var(--fg-2); font-size: 14.5px; }
+.row-prev span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.row-prev.typing { color: var(--accent); font-weight: 500; }
+.badge {
+  justify-self: end; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px;
+  background: var(--accent-fill); color: var(--on-accent); font-size: 12.5px; font-weight: 700;
+  display: grid; place-items: center; font-variant-numeric: tabular-nums;
+}
+.row-tag { justify-self: end; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--fg-2); }
+
+.av {
+  width: 50px; height: 50px; border-radius: 50%; display: grid; place-items: center;
+  background: hsl(var(--ah) var(--av-s) var(--av-l)); color: hsl(var(--ah) 60% var(--av-fl));
+}
+.av svg { width: 26px; height: 26px; }
+.av.sm { width: 40px; height: 40px; } .av.sm svg { width: 21px; height: 21px; }
+.av.lg { width: 84px; height: 84px; } .av.lg svg { width: 42px; height: 42px; }
+
+.fab {
+  position: absolute; right: max(18px, env(safe-area-inset-right, 0px)); bottom: 84px;
+  width: 56px; height: 56px; border-radius: 16px; background: var(--accent-fill); color: var(--on-accent);
+  display: grid; place-items: center; box-shadow: 0 3px 10px hsl(var(--h) 40% 10% / .28);
+}
+.fab:hover { filter: brightness(1.06); }
+
+.tabs {
+  display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line);
+  padding: 6px var(--gr) 8px var(--gl); background: var(--panel);
+}
+.tab { display: grid; justify-items: center; gap: 3px; padding: 4px 0; color: var(--fg-2); font-size: 12.5px; font-weight: 600; }
+.tab .pill { width: 60px; height: 30px; border-radius: 15px; display: grid; place-items: center; }
+.tab[aria-selected="true"] { color: var(--fg); }
+.tab[aria-selected="true"] .pill { background: color-mix(in srgb, var(--accent-fill) 25%, transparent); color: var(--accent); }
+
+.sec-title { font: 700 19px/1.2 var(--font-display); margin: 6px 0 4px; letter-spacing: .01em; }
+.sec-sub { color: var(--fg-2); margin: 0 0 14px; font-size: 14px; max-width: 60ch; }
+
+/* files */
+.file-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 20px;
+  background: var(--raise); color: var(--fg); font-weight: 600; font-size: 14px;
+}
+.btn:hover { filter: brightness(.97); }
+.btn.primary { background: var(--accent-fill); color: var(--on-accent); }
+.btn.danger { color: var(--danger); background: var(--danger-bg); }
+.btn.ghost { background: transparent; color: var(--accent); padding-inline: 10px; }
+.btn .ico { width: 18px; height: 18px; }
+.file-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.file-row {
+  display: grid; grid-template-columns: 42px 1fr auto; gap: 2px 12px; align-items: center; width: 100%;
+  text-align: left; padding: 10px 0; border-bottom: 1px solid var(--line);
+}
+.file-ico {
+  grid-row: span 2; width: 42px; height: 42px; border-radius: 10px; display: grid; place-items: center;
+  background: var(--raise); color: var(--accent);
+}
+.file-name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-meta { font-size: 13px; color: var(--fg-2); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-kind { grid-row: span 2; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--fg-2); }
+.empty-note { color: var(--fg-2); font-size: 14px; padding: 14px 0; }
+
+/* forms */
+.field { display: grid; gap: 6px; margin-bottom: 16px; }
+.field > span { font-size: 13px; font-weight: 600; color: var(--fg-2); letter-spacing: .02em; }
+.field small { color: var(--fg-2); font-size: 12.5px; }
+.inp {
+  width: 100%; min-width: 0; border: 1px solid var(--line); background: var(--bg); border-radius: 10px;
+  padding: 10px 12px; color: var(--fg); outline: none;
+}
+.inp:focus { border-color: var(--accent); }
+textarea.inp { resize: vertical; min-height: 84px; line-height: 1.45; }
+.switch-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin-bottom: 16px; }
+.switch-row p { margin: 2px 0 0; font-size: 13px; color: var(--fg-2); }
+.switch { position: relative; width: 46px; height: 26px; flex: none; }
+.switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.switch i { position: absolute; inset: 0; border-radius: 13px; background: var(--line); transition: background .2s; pointer-events: none; }
+.switch i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--panel); box-shadow: var(--shadow); transition: transform .2s; }
+.switch input:checked + i { background: var(--accent-fill); }
+.switch input:checked + i::after { transform: translateX(20px); }
+.switch input:focus-visible + i { outline: 2px solid var(--accent); outline-offset: 2px; }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--raise); border-radius: 12px; padding: 3px; gap: 3px; }
+.seg button { padding: 8px 6px; border-radius: 9px; font-weight: 600; font-size: 13.5px; color: var(--fg-2); }
+.seg button[aria-pressed="true"] { background: var(--panel); color: var(--accent); box-shadow: var(--shadow); }
+.pickrow { display: flex; flex-wrap: wrap; gap: 8px; }
+.pick { padding: 6px 12px; border-radius: 16px; border: 1px solid var(--line); font-size: 13.5px; font-weight: 500; color: var(--fg-2); }
+.pick[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent-fill) 12%, transparent); }
+.swatches { display: flex; flex-wrap: wrap; gap: 10px; }
+.sw { width: 32px; height: 32px; border-radius: 50%; background: hsl(var(--sh) 60% 45%); border: 3px solid transparent; }
+.sw[aria-pressed="true"] { border-color: var(--fg); }
+.check-list { display: grid; gap: 2px; }
+.check { display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 14px; }
+.check input { width: 18px; height: 18px; accent-color: var(--accent-fill); flex: none; }
+.check span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rules { border: 1px solid var(--line); border-radius: 12px; padding: 4px 14px; }
+.rules summary { padding: 10px 0; font-weight: 600; cursor: pointer; }
+.rules ul { margin: 0 0 12px; padding-left: 18px; color: var(--fg-2); font-size: 13.5px; display: grid; gap: 6px; }
+.store-note { font-size: 13px; color: var(--fg-2); display: flex; gap: 8px; align-items: center; margin: 0 0 16px; }
+.store-note::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--fg-2); flex: none; }
+.store-note.ok::before { background: var(--accent-fill); }
+
+/* ---------- chat ---------- */
+.chat { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--chat-bg); position: relative; transition: background-color .35s ease; }
+.chat-empty { flex: 1; display: grid; place-content: center; justify-items: center; gap: 12px; text-align: center; padding: 24px var(--gr) 24px var(--gl); color: var(--fg-2); }
+.chat-empty .mark { width: 92px; height: 92px; color: var(--accent); opacity: .85; }
+.chat-empty h2 { margin: 0; font: 700 26px/1.1 var(--font-display); color: var(--fg); }
+.chat-empty p { margin: 0; max-width: 42ch; }
+.chat-view { flex: 1; display: flex; flex-direction: column; min-height: 0; position: relative; }
+.chat-head {
+  display: flex; align-items: center; gap: 10px; background: var(--panel);
+  padding: 8px var(--gr) 8px max(8px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line);
+  transition: background-color .35s ease;
+}
+.chat-head .who { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; text-align: left; padding: 2px 4px; border-radius: 10px; }
+.chat-head .who:hover { background: var(--raise); }
+.who-name { font-weight: 600; font-size: 16.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.who-status { font-size: 13px; color: var(--fg-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.who-status.typing { color: var(--accent); font-weight: 500; }
+.who-txt { min-width: 0; display: flex; flex-direction: column; }
+
+.wall { flex: 1; min-height: 0; position: relative; }
+.wall::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; background: var(--wall-ink);
+  -webkit-mask-image: var(--pattern); mask-image: var(--pattern);
+  -webkit-mask-size: 230px 230px; mask-size: 230px 230px;
+}
+.msgs { position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain; padding: 12px var(--gr) 10px var(--gl); display: flex; flex-direction: column; gap: 2px; }
+.day { align-self: center; margin: 10px 0 8px; padding: 5px 12px; border-radius: 8px; background: var(--in); color: var(--meta); font-size: 12.5px; font-weight: 600; box-shadow: var(--shadow); }
+.b {
+  position: relative; max-width: min(82%, 640px); padding: 6px 9px 6px 10px; border-radius: 9px;
+  box-shadow: var(--shadow); overflow-wrap: anywhere; font-size: 15px; line-height: 1.45;
+}
+.b.first { margin-top: 8px; }
+.b.in { align-self: flex-start; background: var(--in); color: var(--in-fg); }
+.b.out { align-self: flex-end; background: var(--out); color: var(--out-fg); }
+.b.in.first { border-top-left-radius: 0; }
+.b.out.first { border-top-right-radius: 0; }
+.b.in.first::before, .b.out.first::before { content: ""; position: absolute; top: 0; width: 0; height: 0; border-top: 11px solid; }
+.b.in.first::before { left: -8px; border-top-color: var(--in); border-left: 8px solid transparent; }
+.b.out.first::before { right: -8px; border-top-color: var(--out); border-right: 8px solid transparent; }
+.b.intro { border: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent); }
+.b .txt b { font-weight: 700; }
+.b .txt code { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: .9em; background: color-mix(in srgb, currentColor 9%, transparent); padding: 0 4px; border-radius: 4px; }
+.b .txt pre { margin: 4px 0; padding: 8px 10px; border-radius: 6px; overflow-x: auto; white-space: pre-wrap; font: 13px/1.45 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; background: color-mix(in srgb, currentColor 8%, transparent); }
+.b .who-tag { font-size: 12.5px; font-weight: 700; color: var(--accent); margin-bottom: 1px; }
+.meta { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap; margin-top: 3px; font-size: 11.5px; color: var(--meta); font-variant-numeric: tabular-nums; }
+.meta .count.over { color: var(--danger); font-weight: 700; }
+.ticks { width: 17px; height: 11px; color: var(--meta); }
+.ticks.read { color: var(--accent); }
+.mbtn { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 6px; color: var(--accent); font-weight: 600; font-size: 12px; }
+.mbtn:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.mbtn svg { width: 14px; height: 14px; }
+.err { margin-top: 4px; padding: 7px 9px; border-radius: 7px; background: var(--danger-bg); color: var(--danger); font-size: 13.5px; }
+.note { margin-top: 4px; font-size: 12.5px; color: var(--meta); font-style: italic; }
+.typing-dots { display: inline-flex; gap: 4px; padding: 6px 2px; }
+.typing-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--meta); animation: blink 1.2s infinite both; }
+.typing-dots i:nth-child(2) { animation-delay: .2s; } .typing-dots i:nth-child(3) { animation-delay: .4s; }
+@keyframes blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+.att { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 5px; }
+.att img { max-width: 100%; width: 260px; border-radius: 6px; display: block; }
+.att-file { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 7px; background: color-mix(in srgb, currentColor 8%, transparent); font-size: 13.5px; min-width: 0; max-width: 100%; }
+.att-file span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.att-file svg { width: 18px; height: 18px; color: var(--accent); }
+
+.suggest { display: flex; gap: 8px; overflow-x: auto; padding: 6px var(--gr) 2px var(--gl); scrollbar-width: none; }
+.suggest::-webkit-scrollbar { display: none; }
+.sugg { flex: none; max-width: 80vw; padding: 8px 13px; border-radius: 18px; background: var(--in); color: var(--fg); font-size: 13.5px; box-shadow: var(--shadow); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); }
+.attach-row { display: flex; gap: 8px; flex-wrap: wrap; padding: 6px var(--gr) 0 var(--gl); }
+.pend { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 5px 6px 5px 10px; border-radius: 16px; background: var(--in); box-shadow: var(--shadow); font-size: 13px; }
+.pend img { width: 26px; height: 26px; object-fit: cover; border-radius: 5px; }
+.pend span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
+.pend button { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: var(--fg-2); }
+.pend button:hover { background: var(--raise); }
+.composer { display: flex; align-items: flex-end; gap: 8px; padding: 8px var(--gr) 10px var(--gl); }
+.cbox { flex: 1; min-width: 0; display: flex; align-items: flex-end; gap: 4px; background: var(--in); border-radius: 24px; padding: 4px 6px 4px 16px; box-shadow: var(--shadow); }
+.cbox textarea { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; resize: none; padding: 9px 0; max-height: 9.5em; line-height: 1.4; color: var(--in-fg); }
+.cbox textarea::placeholder { color: var(--meta); }
+.cbox .icon-btn { width: 40px; height: 40px; color: var(--meta); }
+.send { width: 48px; height: 48px; border-radius: 50%; flex: none; display: grid; place-items: center; background: var(--accent-fill); color: var(--on-accent); }
+.send:disabled { opacity: .55; cursor: default; }
+.limit-pill { font-size: 11.5px; color: var(--meta); padding: 0 var(--gr) 0 var(--gl); text-align: right; margin-top: -4px; font-variant-numeric: tabular-nums; }
+.dropping .wall::after { content: "Suelta el archivo para adjuntarlo"; position: absolute; inset: 12px; border: 2px dashed var(--accent); border-radius: 14px; display: grid; place-items: center; font-weight: 600; color: var(--accent); background: color-mix(in srgb, var(--chat-bg) 80%, transparent); }
+
+/* drawer + sheet */
+.drawer {
+  position: absolute; top: 0; right: 0; bottom: 0; width: min(400px, 100%); z-index: 5;
+  background: var(--panel); border-left: 1px solid var(--line); display: flex; flex-direction: column;
+  box-shadow: -8px 0 24px hsl(var(--h) 30% 5% / .18);
+}
+.drawer-head { display: flex; align-items: center; gap: 8px; padding: 8px var(--gr) 8px 8px; border-bottom: 1px solid var(--line); font-weight: 600; font-size: 16px; }
+.drawer-body { flex: 1; overflow-y: auto; padding: 16px var(--gr) 32px var(--gl); }
+.drawer-hero { display: grid; justify-items: center; gap: 6px; text-align: center; margin-bottom: 18px; }
+.drawer-hero h3 { margin: 4px 0 0; font: 700 22px/1.15 var(--font-display); }
+.drawer-hero p { margin: 0; color: var(--fg-2); font-size: 14px; }
+.danger-zone { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--line); }
+.sheet-wrap { position: fixed; inset: 0; z-index: 20; background: var(--scrim); display: grid; place-items: center; padding: 16px; }
+.sheet {
+  width: min(600px, 100%); max-height: min(92%, 860px); display: flex; flex-direction: column;
+  background: var(--panel); border-radius: 16px; overflow: hidden; box-shadow: 0 18px 50px hsl(var(--h) 30% 4% / .35);
+}
+.sheet-head { display: flex; align-items: center; gap: 10px; padding: 12px 12px 12px 18px; border-bottom: 1px solid var(--line); }
+.sheet-head h3 { margin: 0; flex: 1; font: 700 19px/1.2 var(--font-display); }
+.sheet-body { overflow-y: auto; padding: 16px 18px; }
+.sheet-foot { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; padding: 12px 18px; border-top: 1px solid var(--line); }
+.sheet-foot .grow { margin-right: auto; }
+textarea.big { min-height: 260px; font-size: 14px; }
+@media (max-width: 600px) {
+  .sheet-wrap { padding: 0; align-items: end; }
+  .sheet { width: 100%; max-height: 94%; border-radius: 16px 16px 0 0; }
+}
+.toast {
+  position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 30;
+  background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; font-weight: 500;
+  max-width: calc(100% - 32px); box-shadow: 0 6px 20px hsl(0 0% 0% / .25);
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+</style>
+
+<div class="app" id="app" data-view="list">
+  <aside class="side" aria-label="Agentes">
+    <header class="side-head">
+      <h1 class="brand"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 3.5c7 0 12.5 4.9 12.5 11.3S23 26 16 26c-1.6 0-3.1-.2-4.5-.7L5 28l1.6-5.6C4.6 20.4 3.5 17.7 3.5 14.8 3.5 8.4 9 3.5 16 3.5Z"/><path d="m11 10 9.5 9.5M18.5 21.5l3-3M21 10l-9.5 9.5M13.5 21.5l-3-3"/></svg>Battle roleplay</h1>
+    </header>
+
+    <section class="pane" id="pane-chats">
+      <label class="search"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><span class="vh">Buscar agente</span><input id="q" type="search" placeholder="Buscar agente" autocomplete="off"></label>
+      <div class="chips" id="filters">
+        <button class="chip" type="button" data-f="all" aria-pressed="true">Todos</button>
+        <button class="chip" type="button" data-f="combate" aria-pressed="false">Combate</button>
+        <button class="chip" type="button" data-f="analisis" aria-pressed="false">Análisis</button>
+        <button class="chip" type="button" data-f="unread" aria-pressed="false">No leídos</button>
+      </div>
+      <ul class="chat-list" id="chatList"></ul>
+    </section>
+
+    <section class="pane" id="pane-files" hidden>
+      <div class="pane-pad">
+        <h2 class="sec-title">Archivos</h2>
+        <p class="sec-sub">Fichas, lore y guías que leen los agentes. Escribe uno aquí o sube un .txt / .md, y elige qué agentes lo leen.</p>
+        <div class="file-actions">
+          <button class="btn primary" type="button" id="btnWriteFile"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg>Escribir archivo</button>
+          <button class="btn" type="button" id="btnUploadFile"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M5 15v4h14v-4"/></svg>Subir archivo</button>
+          <input type="file" id="libInput" accept=".txt,.md,.markdown,.json,.csv,.log,text/plain,text/markdown" multiple hidden>
+        </div>
+        <ul class="file-list" id="fileList"></ul>
+      </div>
+    </section>
+
+    <section class="pane" id="pane-gustos" hidden>
+      <div class="pane-pad">
+        <h2 class="sec-title">Mis gustos</h2>
+        <p class="sec-sub">Todo lo que pongas aquí lo leen todos los agentes antes de responder.</p>
+        <p class="store-note" id="storeNote">Guardando en este navegador</p>
+        <label class="field"><span>Cómo te llaman</span><input class="inp" id="g-apodo" placeholder="Tu apodo en el rol"></label>
+        <label class="field"><span>Personajes que usas</span><textarea class="inp" id="g-personajes" rows="3"></textarea><small>Tus mains y OCs. Sus fichas completas van en Archivos.</small></label>
+        <label class="field"><span>Universos y series que te gustan</span><textarea class="inp" id="g-universos" rows="2" placeholder="Ej: chainsaw man, jjk, dragon ball, undertale…"></textarea></label>
+        <label class="field"><span>Tu estilo al escribir</span><textarea class="inp" id="g-estilo" rows="4"></textarea></label>
+        <label class="field"><span>Lo que no te gusta</span><textarea class="inp" id="g-odio" rows="3"></textarea></label>
+        <label class="field"><span>Notas libres para los agentes</span><textarea class="inp" id="g-notas" rows="3" placeholder="Lo que quieras que sepan siempre"></textarea></label>
+        <div class="switch-row">
+          <div><strong>Memoria compartida</strong><p>Cada agente ve lo último que escribiste en los otros chats.</p></div>
+          <label class="switch"><span class="vh">Memoria compartida</span><input type="checkbox" id="g-memoria"><i></i></label>
+        </div>
+        <details class="rules">
+          <summary>Reglas que siguen todos los agentes</summary>
+          <ul id="rulesList"></ul>
+        </details>
+      </div>
+    </section>
+
+    <button class="fab" id="fabNew" type="button" aria-label="Nuevo agente" title="Nuevo agente"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M12 8v5M9.5 10.5h5"/></svg></button>
+
+    <nav class="tabs" role="tablist" aria-label="Secciones">
+      <button class="tab" type="button" role="tab" data-tab="chats" aria-selected="true"><span class="pill"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></svg></span>Chats</button>
+      <button class="tab" type="button" role="tab" data-tab="files" aria-selected="false"><span class="pill"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></svg></span>Archivos</button>
+      <button class="tab" type="button" role="tab" data-tab="gustos" aria-selected="false"><span class="pill"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 20s-7.5-4.4-7.5-10.2A4.2 4.2 0 0 1 12 7.2a4.2 4.2 0 0 1 7.5 2.6C19.5 15.6 12 20 12 20Z"/></svg></span>Gustos</button>
+    </nav>
+  </aside>
+
+  <main class="chat" id="chat">
+    <div class="chat-empty" id="chatEmpty">
+      <svg class="mark" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 3.5c7 0 12.5 4.9 12.5 11.3S23 26 16 26c-1.6 0-3.1-.2-4.5-.7L5 28l1.6-5.6C4.6 20.4 3.5 17.7 3.5 14.8 3.5 8.4 9 3.5 16 3.5Z"/><path d="m11 10 9.5 9.5M18.5 21.5l3-3M21 10l-9.5 9.5M13.5 21.5l-3-3"/></svg>
+      <h2>Battle roleplay</h2>
+      <p>Elige un agente de la lista. Cada uno se encarga de una categoría de battle rol y conoce tus gustos y tus fichas.</p>
+    </div>
+    <div class="chat-view" id="chatView" hidden>
+      <header class="chat-head">
+        <button class="icon-btn back-btn" id="btnBack" type="button" aria-label="Volver a los chats"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button>
+        <button class="who" id="btnWho" type="button" aria-label="Ajustes del agente">
+          <span id="headAv"></span>
+          <span class="who-txt"><span class="who-name" id="headName"></span><span class="who-status" id="headStatus"></span></span>
+        </button>
+        <button class="icon-btn" id="btnSettings" type="button" aria-label="Ajustes del chat"><svg class="ico" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5.5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="18.5" r="1.8"/></svg></button>
+      </header>
+      <div class="wall"><div class="msgs" id="msgs" aria-live="polite"></div></div>
+      <div class="suggest" id="suggest"></div>
+      <div class="attach-row" id="attachRow" hidden></div>
+      <form class="composer" id="composer" autocomplete="off">
+        <div class="cbox">
+          <label class="vh" for="input">Mensaje</label>
+          <textarea id="input" rows="1" placeholder="Mensaje"></textarea>
+          <button class="icon-btn" id="btnClip" type="button" aria-label="Adjuntar archivo o imagen" title="Adjuntar"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m20.5 11.5-8.4 8.4a5.2 5.2 0 0 1-7.4-7.4l8.6-8.6a3.5 3.5 0 0 1 5 5l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9"/></svg></button>
+        </div>
+        <button class="send" id="btnSend" type="submit" aria-label="Enviar"></button>
+      </form>
+      <div class="limit-pill" id="limitPill" hidden></div>
+      <input type="file" id="fileInput" multiple hidden>
+      <aside class="drawer" id="drawer" hidden aria-label="Ajustes del chat">
+        <div class="drawer-head">
+          <button class="icon-btn" id="btnCloseDrawer" type="button" aria-label="Cerrar ajustes"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+          Ajustes del chat
+        </div>
+        <div class="drawer-body" id="drawerBody"></div>
+      </aside>
+    </div>
+  </main>
+
+  <div class="sheet-wrap" id="sheetWrap" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+  <div class="toast" id="toast" role="status" hidden></div>
+</div>
+
+<script type="text/plain" id="guide-1">```Para empezar lo más básico es que es BR o Battle Rol? es una forma de rol narrativo donde dos o más personajes se enfrentan a través de descripciones de ataques, defensas o habilidades, usando textos escritos. Los tipos de BR más comunes son:
+
+Rol simple: texto corto, directo, acción sin mucha explicación, como ejemplo: "Lo golpea y lo manda a la chucha o bloquea el golpe con ambos brazos"
+
+BR argumentativo: usa filosofía, metafísica, lógica o teologías para justificar poderes (pero ese requiere de información más avanzada)
+
+BR unlimited: ataques mega chetos, todo vale (pero pueden volverse incoherentes si no sabes controlar, ya que usa BR argumentativo e información avanzada, ya sea para trascender y tankearse los ataques del otro o debunkear)
+
+Lore Rol: se prioriza la coherencia narrativa del personaje, su historia y básicamente no es necesario complicarse, podi usar BR unlimited pero las falacias son permitidas, pero en la mayoría de veces que se hace se utiliza rol simple```
+
+```Lo mejor que puedes hacer para empezar en un BR es tener en cuenta lo siguiente:
+1. Tu personaje es de alguna serie animada, película de ficción, o alguna wea asi, busca en algún foro o wiki sus habilidades, personalidad, sus stats (fuerza, velocidad, resistencia, etc) eeso para ser fiel a este o si bien queri un OC (un personaje creado por ti) tu decides cuales habilidades o haxs va a tener o si tu las inventas (por ejemplo yo soy una Makima Sukuna)
+2. Hasta cierto punto la física es buena a la hora de hacer BR pero por el momento lo mejor sería quedarse con lo más simple y fácil, como es por ejemplo lanzar un desmantelar o un bang```</script>
+<script type="text/plain" id="guide-2">```Para los que les gusta usar fisica o les gustaría aprender a usarla les daré una guia básica```
+
+```Física clásica (Newtoniana) – lo básico: Te sirve para golpes físicos, velocidades, fuerzas.
+Ejemplo:
+
+Segunda ley de Newton: F = ma (Fuerza = masa x aceleración).
+- Puedes decir que tu personaje acelera con tanta fuerza que su golpe genera una presión tan grande que destroza estructuras más allá del nivel molecular
+Ley de conservación de energía:
+- Si algo tiene energía acumulada (cinética, térmica, potencial), puedes usar eso para argumentar que al liberarla, arrasas una zona, o que nada puede detener ese poder salvo que tenga igual o más energía
+Física cuántica (lo mas cheto de la física):
+Estar en dos lugares a la vez (superposición)
+
+Ser impredecible o intangible (principio de incertidumbre)
+
+Teletransportarte (efecto túnel)
+
+Cambiar estados de una partícula con otra a distancia (entrelazamiento cuántico)
+Ejemplo:
+Al Makima estar en un estado de superposición cuántica, su cuerpo ya no depende de una sola posibilidad, lo que lo vuelve intangible ante cualquier ataque físico que busque impactar una coordenada definida del espacio-tiempo
+
+Relatividad
+Te permite usar ideas como:
+
+Velocidad cercana a la luz: el tiempo se dilata, o sea, todo parece moverse más lento para ti (también sirve usar velocidad FTL o más rápido que la velocidad de la luz pero debes tener cuidado de no morir en el intento)
+
+Curvatura del espacio-tiempo: puedes decir que tu golpe no viaja en línea recta, sino que daña desde antes de impactar```
+
+```Si quieren una guía de como realizar su ataque bien, tenga en cuenta los siguiente, como una pequeña lista de weas que tener en cuenta antes de lanzar su ataque:
+Define la acción física
+¿Qué hace tu personaje? ¿Golpea? ¿Corre? ¿Manipula energía? ¿Explota algo?
+
+Apóyate en un principio físico
+Usa una ley o fenómeno real: fuerza, velocidad, energía, fricción, etc```
+
+```Explica el efecto en el enemigo
+Justifica cómo esa acción afecta al rival ¿Le atraviesa? ¿Lo pulveriza? ¿Lo frena?
+
+Escala o exagera si quieres, pero manteniendo lógica
+Puedes decir que tu personaje manipula leyes físicas (como “crea su propio campo gravitacional”) pero debes explicar el por qué y el cómo, aunque sea en una frase```
+||Para los que les gusta esta wea y quieren un poco más, les recomiendoleer sobre: entropía, campos electromagnéticos, teoría de cuerdas, ondas gravitacionales, etc||</script>
+<script type="text/plain" id="guide-3">```Para este punto no solo describes qué hace tu personaje, sino también por qué funciona lo que hace (Esto solo para los weones que quieren mejorar en BR unlimited o argumentativo). Comienzas a justificar tus ataques con conceptos como:
+Causalidad (si haces X, pasa Y),
+
+• Lógica interna del universo
+
+• Filosofías básicas (ej: Platonismo, Dualismo, Nihilismo)
+
+• Jerarquías de poder (el personaje afecta conceptos > ideas > materia)```
+||(Les daré una pequeña ayuda con el tema del platonismo)||
+
+# Platonismo
+
+Un concepto es una idea que forma el entendimiento de algo
+
+En la base de la existencia, todo se sostiene en conceptos puros wn, esas ideas que no tienen copia ni reemplazo, porque no dependen ni de la materia ni del tiempo. Son las formas que Platón decía que están más allá de todo lo que cachamos; entonces para saber como implementarlo en un br debi decir como tu ataque actúa directamente sobre estos conceptos, no sobre simples manifestaciones
+
+Los conceptos platónicos no se superan así como así, porque son el nivel máximo en su categoría: son lo más puro, la raíz de todo lo que existe
+
+Los conceptos platónicos son el nivel máximo dentro de la categoría de conceptos, osea cuando hablamos solo de conceptos, lo más alto que puedes llegar son las Formas platónicas se trasciende el nivel conceptual entero
+
+Aplicación:
+
+Primero, deci que atacas o manipulas el nivel de los conceptos (ideas, formas, leyes, propiedades, etc)
+
+Luego muestras el nivel de las formas platónicas (o sea, el origen perfecto de esas ideas/conceptos)
+
+Y ya si estai confiado de tu conocimiento, trasciendes el platonismo, diciendo que tu existencia, ataque o presencia ya no depende de conceptos, ni de formas, ni de ideas
+
+Osea dejas claro que al trascender el platonismo, anulas o rompes todos los conceptos posibles, y atacas directamente la existencia o lo que haya detrás de ella (como la raíz ontológica, por ejemplo)
+
+```Otras weas que pueden usar es:
+Relatividad: Tu ataque funciona diferente dependiendo del marco de referencia
+
+Causalidad invertida: Atacas desde el efecto hacia la causa
+
+Entropía: Tu habilidad destruye por desgaste progresivo de la organización```
+
+```Ahora las estructuras de las biblias o textos de ataque/defensa son más complejos, deben seguir esta guia:
+
+Inicio: Cómo se lanza o manifiesta el ataque.
+
+Núcleo: Qué está afectando realmente (materia, conciencia, tiempo, conceptos…)
+
+Consecuencia: Qué pasa si no es detenido o si afecta al enemigo (auto-destrucción, reinicio, corrupción, etc)
+
+Además de tener cuidado con las falacias y auto nerfeadas, algo asi como decir que tu personaje no depende del tiempo para atacar pero usa una velocidad, eso ya lo hace dependiente a un marco temporal. Y evitar decir que bloquean algo solo por ser fuertes, no porque su personaje sea Saitama o dios, significa que puede hacer de todo sin especificarse como lo hace```
+
+```Si todo esto se les complica, empiecen dominando conceptos básicos como: existencia vs inexistencia, concepto vs fenómeno, dualidad (ej: luz/oscuridad, ser/no ser), idea (platonismo básico: todo lo real nace de una idea perfecta)```
+
+```En mi opinión algunos términos que les puede ayudar son estos:
+
+Transcender:	Superar un marco de existencia (ej: trascender el tiempo, las leyes físicas)
+Inexistencia:	Algo que ni siquiera puede ser definido como "nada". Es más allá del no-ser
+Axiomático:	Algo que es verdadero por sí mismo, como un principio base de la lógica o existencia
+Raíz conceptual: La idea más básica que sostiene algo (como el concepto de "vida", "muerte", etc.)```</script>
+<script type="text/plain" id="guide-4">¿Qué es el neoplatonismo?
+
+En su núcleo, el neoplatonismo es una metafísica de la trascendencia, que postula una realidad suprema, el Uno, de la cual emana toda la existencia en una serie de grados descendentes.
+
+En términos filosóficos básicos:
+
+El Uno (o lo Uno, to Hen): Es el principio supremo, absoluto e inefable. Está más allá del ser y del pensamiento, es la fuente de toda existencia pero no es ninguna de las cosas que existen. Es una unidad perfecta, indivisible e indescriptible. Plotino, la figura central del neoplatonismo, también lo identifica con el Bien.
+
+El Intelecto (Nous): La primera emanación del Uno. Es el mundo de las Ideas platónicas, la inteligencia pura que se contempla a sí misma y contiene los arquetipos de todo lo que existe. Es el nivel del ser verdadero y la perfecta inteligibilidad.
+
+El Alma (Psyché): Procede del Intelecto y actúa como un puente entre el mundo inteligible y el mundo sensible. Se divide en un alma superior, que permanece en contacto con el Nous, y un alma inferior, que se asocia con el mundo material y da vida a los cuerpos individuales.
+
+La Materia (Hyle): El nivel más bajo de la existencia, caracterizado por la multiplicidad, la imperfección y la privación de ser. Es considerada el principio del mal, no en un sentido moral activo, sino como la ausencia de bien y de luz, la oscuridad que se encuentra en el punto más alejado del Uno.
+
+Cómo aplicarlo en BR:
+
+Define la Hipóstasis que vas a usar
+
+¿Actúas como el Uno (causa primaria), el Nous (reapertura de la Idea) o el Alma del Mundo (rompes/alteras la mediación)?
+
+Ejemplo: Makima = “adjudicación del Uno”. Tatsumaki = manipula flujo / Nous.
+
+¿Que apuntas a la forma/idea que sostiene al rival (Nous)? ¿A su nexo existencial (Alma/participación)? ¿A su manifestación física?
+
+Sé específico: “anular su pasiva X” o “romper la continuidad narrativa que permite regeneración”.
+
+Explica cómo actúa la técnica (mecánica narrativa)
+
+¿La técnica suprime la participación? ¿Invierte la emanación (lo que era causa pasa a ser efecto)? ¿Hace a la Forma inadecuada (corrompe la Idea)?
+
+Ejemplo de frase técnica: “destruye la raíz de conceptual/primordial/absoluta/ontológica de la que proviene su irrompibilidad”.
+
+Fija límites (en caso de que se necesite)
+
+¿Alcance? (solo objetivo / área / dominio)
+
+¿Duración? (instante / minutos narrativos / permanente salvo cura)
+
+¿Requisitos? (tiempo de canalización, concentración)
+
+¿Contraindicaciones? (no funciona contra entidades sin participación manifiesta, o requiere romper su Fuente primero)
+
+Especifica efectos y excepciones
+
+No digas “todo se borra” sin explicacion. Di qué exactamente le jodes: pasivas, anclajes, coherencia narrativa, raíz de regeneración, etc.
+
+Ya que tengas todo eso, ya empieza a crear la acción:
+
+Acción + cómo trasciende + qué rompe + efecto en el rival + condición/limitación</script>
+
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const DEFAULT_HUE = 158;
+
+/* ---------------- icons ---------------- */
+const SVG = (d, extra = '') => `<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ${extra}>${d}</svg>`;
+const I = {
+  send: '<svg class="ico" viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 20.4 21 12 3.4 3.6l.1 6.5L15 12l-11.5 1.9z"/></svg>',
+  stop: '<svg class="ico" viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="6.5" width="11" height="11" rx="2"/></svg>',
+  ticks: '<svg class="ticks" viewBox="0 0 18 11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 6l3.2 3.2L11 1.5"/><path d="M7.4 8.6l.6.6L14.8 1.5"/></svg>',
+  copy: SVG('<rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5"/>'),
+  retry: SVG('<path d="M4 12a8 8 0 0 1 13.7-5.6L20 8.7"/><path d="M20 4v4.7h-4.7"/><path d="M20 12a8 8 0 0 1-13.7 5.6L4 15.3"/><path d="M4 20v-4.7h4.7"/>'),
+  scissors: SVG('<circle cx="6" cy="7" r="2.5"/><circle cx="6" cy="17" r="2.5"/><path d="M8.2 8.3 20 18M8.2 15.7 20 6"/>'),
+  file: SVG('<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/>'),
+  lock: SVG('<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'),
+  x: SVG('<path d="M6 6l12 12M18 6 6 18"/>', 'style="width:14px;height:14px"'),
+  close: SVG('<path d="M6 6l12 12M18 6 6 18"/>'),
+};
+const GLYPH = {
+  sword: '<path d="M20 4 9.5 14.5"/><path d="M20 4h-4.2M20 4v4.2"/><path d="m6 12 6 6"/><path d="M7.6 16.4 4 20"/>',
+  atom: '<ellipse cx="12" cy="12" rx="9.5" ry="3.8"/><ellipse cx="12" cy="12" rx="9.5" ry="3.8" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="9.5" ry="3.8" transform="rotate(-60 12 12)"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/>',
+  infinity: '<path d="M12 12c-2-2.7-3.6-4-5.5-4a4 4 0 0 0 0 8c1.9 0 3.5-1.3 5.5-4Zm0 0c2 2.7 3.6 4 5.5 4a4 4 0 0 0 0-8c-1.9 0-3.5 1.3-5.5 4Z"/>',
+  book: '<path d="M4 5.5c2.6-1 5.4-1 8 .6 2.6-1.6 5.4-1.6 8-.6v13.4c-2.6-1-5.4-1-8 .6-2.6-1.6-5.4-1.6-8-.6Z"/><path d="M12 6.1v13.4"/>',
+  shield: '<path d="M12 3 19 6v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6Z"/><path d="m12.5 7-2.3 4.3h3.4L11.4 16"/>',
+  bars: '<path d="M4 20h16"/><path d="M6.5 20v-4M10.5 20v-7.5M14.5 20v-11M18.5 20V5"/>',
+  lens: '<circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5"/><path d="M8 10.5h5"/>',
+  bulb: '<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3Z"/>',
+};
+const avatar = (a, cls = '') => `<span class="av ${cls}" style="--ah:${a.hue}" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${GLYPH[a.glyph]}</svg></span>`;
+
+function patternUrl(glyph) {
+  const pos = [[12,16,-12,1.15],[96,6,18,.9],[160,50,-24,1.05],[52,78,30,1.2],[118,104,-8,.95],[16,140,14,1],[86,164,-30,1.1],[166,150,22,.9]];
+  let g = '';
+  for (const [x, y, r, s] of pos) g += `<g transform="translate(${x} ${y}) rotate(${r} 12 12) scale(${s})">${GLYPH[glyph]}</g>`;
+  const dots = [[70,40],[140,30],[40,120],[150,120],[110,192],[192,96],[8,96],[124,74]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.6" fill="#000" stroke="none"/>`).join('');
+  const plus = [[30,62],[72,140],[184,190],[190,14]].map(([x, y]) => `<path d="M${x - 3.5} ${y}h7M${x} ${y - 3.5}v7"/>`).join('');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200" fill="none" stroke="#000" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${g}${dots}${plus}</svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+}
+
+/* ---------------- what the agents know ---------------- */
+const RULES = [
+  'Entrega EXACTAMENTE lo que te pidió, nada más ni nada menos. Sin preámbulos tipo "claro, aquí tienes", sin repetir la pregunta, sin clases de teoría si pidió un texto.',
+  'El usuario manda la jugada: si dice el orden de los hechos, qué habilidades van, cómo se recibe el golpe o cómo queda su personaje, se escribe ASÍ. No la cuestiones, no la cambies, no le metas debunk ni contraataques que no pidió.',
+  'Nunca marques límites o debilidades del personaje del usuario si no pidió un análisis.',
+  'Si el pedido es ambiguo, haz UNA pregunta corta (largo o formato) y nada más.',
+  'La ficha es la base, no una jaula: puedes combinar y extender habilidades que SÍ están escritas, nunca inventar una que no existe. Si el usuario ordena un uso, se refuerza su respaldo, nunca se cambia.',
+  'Resultado siempre abierto: describe lo que hace su personaje y hasta dónde llega, pero NUNCA declares qué le pasa al rival al final ni escribas su reacción (nada de mano negra).',
+  'No repitas el truco del turno anterior. Toda acción pega de verdad, no solo defiende, salvo que pida solo defensa o esquive.',
+  'En devoluciones o counters, el daño y el alcance salen del texto del rival. Escalón de más por el eje correcto: mismo tipo de daño más una capa que el rival no puede sostener.',
+  'Toda mejora es buff o parche de respaldo, nunca nerf. No le bajes nada a lo que el texto ya reclama.',
+  'Empatar = igualar el nivel del rival Y atacar a ese nivel. Solo defender es perder de a poco.',
+  'Las etiquetas no ganan: un ataque "absoluto" que escribe pasos se agarra por esos pasos. Altura sin mecanismo de bajada es reclamo sin escalera.',
+  'Aceptar la acción del rival no es aceptar su resultado. Si el rival presiona con "¿estás seguro?" sin argumento, no se cede.',
+  'Lo que no está en la ficha ni se estableció antes del combate es debunkeable como asspull.',
+];
+const VOICE = `- Un solo bloque corrido, casi sin puntos seguidos, encadenado con comas y conectores chilenos (y, pos, así que, entonces, porque, mientras, ahí, po, además, ahora mismo).
+- Nombres de personajes en minúscula (makima, gojo, dio). Tercera persona metida en el movimiento, nunca narrador comentarista.
+- Técnicas nombradas Y explicadas dentro del texto, nunca en lista aparte. Para marcar peso puedes escribir el nombre de una técnica o personaje-título en letra estilizada unicode (ej. 𝕿𝖍𝖆𝖗𝖎𝖟𝖉𝖚𝖓), solo en menciones puntuales.
+- Recursos de voz: preguntas retóricas auto-respondidas ("¿porque? simple porque...", "¿que rayos? pues..."), MAYÚSCULAS selectivas solo en momentos de peso, repetición rítmica de escalada ("y otra, y otra"), enumeración de tres niveles dentro de la prosa (el físico, el conceptual y el esencial), "ahora mismo" para abrir una fase nueva sin cortar el párrafo, causalidad preemptiva (el efecto antes que la causa), símbolos de transición como "-🌌-. . ." solo cuando cambia la fase.
+- Jerga natural: pos, wea, we, cacha, al tiro, nomás, así que, si señores, ye jodes, ban.
+- Diálogo con el prefijo -🔴-
+- Mecanismo antes que resultado. Nivel contra nivel (no se bloquea un hax conceptual con durabilidad física). Coherencia interna (si trasciende el tiempo no usa velocidad). Sin auto-nerfeos. Nunca "es más fuerte" o "lo bloquea porque puede" sin decir cómo.
+- Prohibido: viñetas, títulos, secciones tipo Acción/Respaldo/Efecto, prosa solemne, filosofía barata, palabras rebuscadas, em dashes decorativos, ironía forzada.
+- Formato: envuelve el bloque de la acción entre asteriscos, *así*, en una sola línea sin saltos, para que salga en negrita al pegarlo en el chat.`;
+
+const BASE = [
+  { id: 'simple', name: 'Rol Simple', hue: 158, glyph: 'sword', group: 'combate', fight: true, voice: true,
+    blurb: 'Acciones cortas y al grano',
+    role: 'Rol simple. Textos cortos y contundentes: gesto más efecto, de una a tres líneas, sin núcleo filosófico pero con la misma voz corrida y coherente. Ejemplo del tono: "lo agarra del cuello y lo manda a la chucha contra el cerro".',
+    intro: 'Wena, soy Rol Simple. Dime qué hace tu personaje y te lo dejo corto, directo y en tu estilo. Si quieres que yo sea tu rival, cambia el modo a "Pelea conmigo" en los ajustes del chat.',
+    suggest: ['Mi personaje le mete un combo y lo manda a volar', 'Bloquea el golpe con los dos brazos y contraataca al tiro', 'Esquiva por arriba y le cae con una patada'] },
+  { id: 'argumentativo', name: 'Argumentativo', hue: 222, glyph: 'atom', group: 'combate', fight: true, voice: true,
+    blurb: 'Física, filosofía y lógica',
+    role: 'BR argumentativo. Núcleo cargado de justificación: física (Newton, conservación de energía, cuántica: superposición, incertidumbre, efecto túnel, entrelazamiento; relatividad: dilatación, FTL con cuidado, curvatura del espacio-tiempo), filosofía (platonismo, neoplatonismo: el Uno, Nous, Alma, Materia), causalidad y jerarquías (conceptos > ideas > materia). Dentro del bloque: inicio (cómo se lanza), núcleo (qué afecta realmente y por qué funciona), consecuencia buscada. Sin perder la fluidez.',
+    intro: 'Aquí se respalda todo: física, filosofía, causalidad. Dime la jugada y te la escribo con núcleo y mecanismo, sin falacias ni auto-nerfeos.',
+    suggest: ['Golpe FTL respaldado con relatividad', 'Ataque al concepto del rival usando platonismo', 'Defensa con superposición cuántica contra un golpe físico'] },
+  { id: 'unlimited', name: 'Unlimited', hue: 268, glyph: 'infinity', group: 'combate', fight: true, voice: true,
+    blurb: 'Escala libre, coherencia total',
+    role: 'BR unlimited. Escala libre: hax conceptuales, causales, ontológicos, narrativos, trascender el platonismo, jerarquías infinitas, capas que contienen capas. Pero cada hax con su mecanismo explícito y coherencia interna inviolable, y si el personaje trasciende, escribe cómo baja a tocar al rival. Ataca en varios niveles a la vez (físico, conceptual, esencial) para no dejar flancos.',
+    intro: 'Escala libre, pero cada hax con su mecanismo y con cómo baja a tocar al rival. Pásame tu ficha en Archivos y dime la jugada.',
+    suggest: ['Trasciende el platonismo y ataca la raíz ontológica del rival', 'Tankea su hax conceptual con una mecánica de mi ficha', 'Combina dos habilidades de mi ficha en un solo ataque'] },
+  { id: 'lore', name: 'Lore Rol', hue: 32, glyph: 'book', group: 'combate', fight: true, voice: true,
+    blurb: 'Fiel al personaje y su historia',
+    role: 'Lore rol. Prioriza la fidelidad al personaje: su personalidad, su forma de hablar, su lore canónico y sus técnicas reales. Normalmente se escribe como rol simple con más narrativa; las falacias se toleran pero la coherencia del personaje manda. Usa diálogos -🔴- con la voz del personaje.',
+    intro: 'Fiel al personaje y a su historia. Dime quién es tu personaje, contra quién peleas y qué pasa en la escena.',
+    suggest: ['Escena de entrada de mi personaje con diálogo', 'Usa una técnica canónica de mi personaje', 'Responde como lo haría mi personaje según su lore'] },
+  { id: 'debunk', name: 'Debunkeo', hue: 356, glyph: 'shield', group: 'analisis', fight: false, voice: true,
+    blurb: 'Desarma el texto del rival',
+    role: `Debunkeo. Desmantelas el texto del rival en el mismo bloque corrido y con la misma voz: 1) citas el error con las palabras EXACTAS del rival, 2) explicas el mecanismo de por qué falla (auto-referencia circular, conceptual común ignorado, inflación sin escala, tipo contra tipo equivocado, temporalidad imposible, omnisciencia narrativa, ad hoc), 3) respaldas con un principio, una analogía clara o lo que el personaje del usuario ya hizo, 4) cierras con "¿que debio pasar?", un remate (ye jodes, EN TODAS PIERDES, no, no hay X) o la transición a contraataque si el usuario lo pidió. Encadena errores con "además" y abre con la refutación, nunca con reconocimiento. Datos contra datos: no inventes lore del rival, no ataques a la persona, no repitas la misma falacia con otras palabras. Frases propias: fallastes, es estupido eso, asi que si señores.`,
+    intro: 'Pégame el texto del rival tal cual. Te saco los errores citando sus propias palabras y te armo el debunkeo en un bloque.',
+    suggest: ['Debunkea esto: ', 'Busca auto-nerfeos y contradicciones en este texto: ', 'Debunkea y después contraataca con: '] },
+  { id: 'escalas', name: 'Escalas', hue: 192, glyph: 'bars', group: 'analisis', fight: false, voice: false,
+    blurb: 'Estados de existencia y alcance',
+    role: `Escalas. Nombras en qué estado de existencia está una idea, forma, habilidad o personaje y hasta dónde llega su alcance. Los nombras como estados de existencia, NO como jerarquía, salvo que el usuario pida una jerarquía. Referencia de estados: I Lo Absoluto Incondicionado (Tier 0: PSW 0 Apeiron, Nigh-0, FSL 0 Infinito Absoluto, VSBW Boundless, OBW 1-A Ω); II Mente trascendente o casi-absoluto (PSW High 1-T+, 1-T, Low 1-T, FSL 1-A Alto, OBW 1-A β y α, VSBW High 1-A y High 1-A+: lo cualitativo le gana a lo cuantitativo aunque sea infinito absoluto); III Outerversal cualitativo (1-A: ya no se mide en dimensiones, "más grande" deja de significar algo); IV Outerversal bajo o transfinito (Low 1-A: von Neumann, sigue siendo cantidad); V Hiperversal (1-B, 12-D a infinito-dimensional); VI Multiverso complejo (1-C, 5-D a 11-D); VII Multiversal espacio-temporal (Tier 2); VIII Cósmico (Tier 3); IX Astronómico (Tiers 4-5); X Planetario y abajo. Explica con frases cortas y palabras de todos los días, como a alguien que no cacha ningún término; en guiones simples, una idea por guion.`,
+    intro: 'Dime una habilidad, forma o personaje y te digo en qué estado de existencia está y hasta dónde llega, explicado simple.',
+    suggest: ['¿En qué estado queda una habilidad que borra conceptos?', 'Explícame la diferencia entre 1-A y Low 1-A', '¿Hasta dónde llega esta habilidad de mi ficha? '] },
+  { id: 'analista', name: 'Analista', hue: 95, glyph: 'lens', group: 'analisis', fight: false, voice: false,
+    blurb: 'Resume al rival y marca aperturas',
+    role: 'Analista. Antes de responder lee TODO el historial del chat y cada mensaje pegado, letra por letra, para tener el contexto fijo. Resúmenes del rival: qué hizo, con qué y en qué orden, simple y sin opinión; al final una sección "Lo que dejó abierto" citando lo que ÉL escribió (admisiones, contradicciones, categorías que listó y se saltó, choques con sus aliados o con leyes ya establecidas). Feedback de un texto del usuario: veredicto global primero (sirve / no sirve) y después SOLO los hoyos que pierden el combate, sin pulido menor salvo que pida análisis detallado. Explicaciones en frases cortas, en guiones simples, una idea por guion, sin lenguaje robótico.',
+    intro: 'Te resumo lo que hizo el rival, en qué orden, y lo que dejó abierto con sus propias palabras. También te digo si tu texto sirve o no.',
+    suggest: ['Resume este texto del rival: ', '¿Mi acción sirve o no? ', '¿Qué dejó abierto el rival en este turno? '] },
+  { id: 'estratega', name: 'Estratega', hue: 318, glyph: 'bulb', group: 'analisis', fight: false, voice: true,
+    blurb: 'Dos o tres jugadas para elegir',
+    role: 'Estratega (modo exploración). Cuando el usuario pide ideas u opciones, entrega 2 o 3 vías distintas y cortas, cada una diciendo qué gana y qué arriesga, sacadas de su ficha y de las aperturas del texto del rival, y deja que ÉL elija. No ejecutes ninguna sin que la elija. Cuando elija, redacta la acción completa en la voz del usuario.',
+    intro: 'Cuando no sepas qué jugar, te doy 2 o 3 caminos con lo que gana y arriesga cada uno. Tú eliges y te lo redacto.',
+    suggest: ['Dame opciones para responder a esto: ', '¿Cómo empato su nivel sin solo defender?', 'Ideas para usar mi ficha de otra forma'] },
+];
+const HUES = [158, 222, 268, 32, 356, 192, 95, 318, 12, 48, 245, 290];
+
+const DEFAULT_GUSTOS = {
+  apodo: '',
+  personajes: 'makima sukuna (mi OC), 𝕿𝖍𝖆𝖗𝖎𝖟𝖉𝖚𝖓 el dios de la arena, evil vegito, el monarca, frisk neutral',
+  universos: '',
+  estilo: 'Narración corrida en un solo bloque, nombres de personajes en minúscula, jerga chilena (pos, wea, cacha, al tiro, ye jodes, si señores), preguntas retóricas auto-respondidas, mayúsculas solo en momentos de peso, técnicas explicadas dentro del texto, diálogos con -🔴-.',
+  odio: 'Relleno y preámbulos tipo "claro, aquí tienes", auto-nerfeos, viñetas o secciones dentro de las acciones, prosa solemne o palabras rebuscadas, que me cambien la jugada o le bajen algo.',
+  notas: '',
+  memoria: true,
+};
+const BUILTIN = [
+  { id: 'guia-1', name: 'Guía BR 1 · Tipos de BR y cómo empezar', el: 'guide-1', scope: 'all' },
+  { id: 'guia-2', name: 'Guía BR 2 · Física para BR', el: 'guide-2', scope: ['argumentativo', 'unlimited', 'debunk', 'estratega'] },
+  { id: 'guia-3', name: 'Guía BR 3 · Argumentativo y platonismo', el: 'guide-3', scope: ['argumentativo', 'unlimited', 'debunk', 'escalas', 'estratega'] },
+  { id: 'guia-4', name: 'Guía BR 4 · Neoplatonismo aplicado', el: 'guide-4', scope: ['argumentativo', 'unlimited', 'escalas'] },
+].map(f => ({ ...f, builtin: true, text: (document.getElementById(f.el)?.textContent || '').trim() }));
+
+/* ---------------- state ---------------- */
+const state = {
+  profile: { gustos: { ...DEFAULT_GUSTOS }, agents: [], chatCfg: {}, fileScopes: {}, unread: {} },
+  chats: {},
+  files: [],
+  open: null,
+  tab: 'chats',
+  filter: 'all',
+  q: '',
+  drawer: false,
+  gen: {},
+  pending: [],
+  dirty: { profile: false, chats: new Set(), files: false },
+};
+const rid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-5);
+const countChars = s => Array.from(String(s || '').replace(/\n/g, '')).length;
+const nf = new Intl.NumberFormat('es-CL');
+
+function agents() {
+  return [...BASE, ...state.profile.agents.map(c => {
+    const b = BASE.find(x => x.id === c.base) || BASE[0];
+    return { ...b, id: c.id, name: c.name, hue: c.hue ?? b.hue, blurb: c.blurb || b.blurb, custom: true, instr: c.instr || '', baseName: b.name,
+      intro: `Soy ${c.name}. ${c.blurb || b.blurb}. Trabajo como ${b.name} con tus instrucciones propias.` };
+  })];
+}
+const agentById = id => agents().find(a => a.id === id);
+const hueOf = a => state.profile.chatCfg[a.id]?.hue ?? a.hue;
+function cfg(id) {
+  const c = state.profile.chatCfg[id] ||= {};
+  return Object.assign({ mode: 'write', mine: '', rival: '', limit: 0, tier: 'default', extra: '' }, c);
+}
+function setCfg(id, patch) { state.profile.chatCfg[id] = { ...(state.profile.chatCfg[id] || {}), ...patch }; saveProfile(); }
+const chatOf = id => (state.chats[id] ||= []);
+function allFiles() {
+  return [...BUILTIN.map(f => ({ ...f, scope: state.profile.fileScopes[f.id] ?? f.scope })), ...state.files];
+}
+const reads = (f, agentId) => f.scope === 'all' || (Array.isArray(f.scope) && f.scope.includes(agentId));
+
+/* ---------------- capabilities + storage ---------------- */
+const use = name => { try { return window.claude?.use ? window.claude.use(name).catch(() => null) : Promise.resolve(null); } catch { return Promise.resolve(null); } };
+const samplePromise = use('sample');
+let sampleLimits = null;
+samplePromise.then(s => s && s.limits().then(l => { sampleLimits = l; refreshAccept(); }).catch(() => {}));
+let assets = null;
+use('assets').then(a => { assets = a; });
+let db = null, base = null;
+
+const LS_KEY = 'battle-roleplay-v1';
+function lsRead() { try { return JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch { return null; } }
+let lsTimer = null;
+function lsWrite() {
+  clearTimeout(lsTimer);
+  lsTimer = setTimeout(() => {
+    try { localStorage.setItem(LS_KEY, JSON.stringify({ profile: state.profile, chats: Object.fromEntries(Object.entries(state.chats).map(([k, v]) => [k, storeMsgs(v)])), files: state.files })); } catch {}
+  }, 400);
+}
+function storeMsgs(list) {
+  let out = list.filter(m => !m.pending).map(m => {
+    const o = { ...m }; delete o.pending;
+    if (o.files) o.files = o.files.map(f => ({ name: f.name, kind: f.kind, asset: f.asset || undefined, text: f.text ? f.text.slice(0, 30000) : undefined }));
+    return o;
+  });
+  while (out.length > 1 && JSON.stringify(out).length > 140000) out.shift();
+  return out;
+}
+const writers = {};
+function dbWrite(key, getOp) {
+  lsWrite();
+  if (!db) return;
+  const w = writers[key] ||= { timer: null, running: false, again: false, op: null };
+  w.op = getOp;
+  clearTimeout(w.timer);
+  w.timer = setTimeout(() => runWriter(w), 700);
+}
+async function runWriter(w) {
+  if (w.running) { w.again = true; return; }
+  w.running = true;
+  try { const op = w.op(); if (op.del) await op.ref.delete(); else await op.ref.set(op.data); }
+  catch (e) { if (e?.code === 'quota_exceeded') toast('Se llenó el espacio guardado. Vacía algún chat o borra archivos.'); }
+  finally { w.running = false; if (w.again) { w.again = false; runWriter(w); } }
+}
+const profileRef = () => db.doc(base + '/profile');
+function saveProfile() { state.dirty.profile = true; dbWrite('profile', () => ({ ref: profileRef(), data: { ...state.profile, v: 1 } })); }
+function saveChat(id) { state.dirty.chats.add(id); dbWrite('chat:' + id, () => ({ ref: db.doc(base + '/chat-' + id), data: { msgs: storeMsgs(chatOf(id)), ts: Date.now() } })); }
+function saveFile(f) { state.dirty.files = true; dbWrite('file:' + f.id, () => ({ ref: profileRef().collection('files').doc(f.id), data: { name: f.name, text: f.text, scope: f.scope, ts: f.ts } })); }
+function deleteFile(id) { dbWrite('file:' + id, () => ({ ref: profileRef().collection('files').doc(id), del: true })); }
+
+function mergeProfile(p) {
+  if (!p) return;
+  state.profile = {
+    gustos: { ...DEFAULT_GUSTOS, ...(p.gustos || {}) },
+    agents: Array.isArray(p.agents) ? p.agents : [],
+    chatCfg: p.chatCfg || {}, fileScopes: p.fileScopes || {}, unread: p.unread || {},
+  };
+}
+const timeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej({ code: 'timeout' }), ms))]);
+
+async function boot() {
+  const cached = lsRead();
+  if (cached) { mergeProfile(cached.profile); state.chats = cached.chats || {}; state.files = Array.isArray(cached.files) ? cached.files : []; }
+  renderAll();
+  if (isWide()) openChat('simple');
+  const [d, u] = await Promise.all([use('db'), use('user')]);
+  if (!d || !u) return setStoreNote(false);
+  let uid = null;
+  try { uid = await u.id(); } catch {}
+  if (!uid) return setStoreNote(false);
+  db = d; base = 'data/users/' + uid;
+  try {
+    const [snap, fsnap] = await timeout(Promise.all([db.collection(base).get(), profileRef().collection('files').get()]), 10000);
+    const docs = Object.fromEntries(snap.docs.map(s => [s.id, s.data()]));
+    if (docs.profile) {
+      if (!state.dirty.profile) mergeProfile(docs.profile);
+      for (const [k, v] of Object.entries(docs)) {
+        if (!k.startsWith('chat-')) continue;
+        const id = k.slice(5);
+        if (state.dirty.chats.has(id)) continue;
+        state.chats[id] = Array.isArray(v.msgs) ? v.msgs.map(m => ({ ...m })) : [];
+      }
+      if (!state.dirty.files) state.files = fsnap.docs.map(s => ({ id: s.id, ...s.data() }));
+    }
+    setStoreNote(true);
+    renderAll();
+  } catch {
+    setStoreNote(false, 'No se pudo leer tu cuenta todavía; por ahora se guarda en este navegador');
+  }
+}
+function setStoreNote(ok, msg) {
+  const el = $('#storeNote');
+  el.classList.toggle('ok', ok);
+  el.textContent = msg || (ok ? 'Chats, gustos y archivos guardados en tu cuenta, privados' : 'Se guarda solo en este navegador');
+}
+
+/* ---------------- formatting ---------------- */
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function fmt(src) {
+  let s = esc(src || '');
+  const blocks = [];
+  s = s.replace(/```([\s\S]*?)```/g, (m, c) => { blocks.push(c.replace(/^\n/, '')); return `\u0000${blocks.length - 1}\u0000`; });
+  s = s.replace(/\*\*(?=\S)([^\n]+?)\*\*/g, '<b>$1</b>');
+  s = s.replace(/(^|[^\w*])\*(?=\S)([^*\n]+?)\*(?![\w*])/gm, '$1<b>$2</b>');
+  s = s.replace(/(^|[^\w_])_(?=\S)([^_\n]+?)_(?![\w_])/gm, '$1<i>$2</i>');
+  s = s.replace(/(^|[^\w~])~(?=\S)([^~\n]+?)~(?![\w~])/gm, '$1<s>$2</s>');
+  s = s.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  s = s.replace(/^#{1,4}\s+(.+)$/gm, '<b>$1</b>');
+  s = s.replace(/\n/g, '<br>');
+  return s.replace(/\u0000(\d+)\u0000/g, (m, i) => `<pre>${blocks[+i]}</pre>`);
+}
+const plain = s => String(s || '').replace(/```/g, '').replace(/[*_~`]/g, '').replace(/\s+/g, ' ').trim();
+const two = n => String(n).padStart(2, '0');
+const hhmm = ts => { const d = new Date(ts); return `${two(d.getHours())}:${two(d.getMinutes())}`; };
+const dayKey = ts => { const d = new Date(ts); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
+function dayLabel(ts) {
+  const now = new Date(); const d = new Date(ts);
+  if (dayKey(ts) === dayKey(now)) return 'Hoy';
+  if (dayKey(ts) === dayKey(now.getTime() - 864e5)) return 'Ayer';
+  return d.toLocaleDateString('es', { day: 'numeric', month: 'long', year: d.getFullYear() === now.getFullYear() ? undefined : 'numeric' });
+}
+function listDate(ts) {
+  if (!ts) return '';
+  const now = new Date(); const d = new Date(ts);
+  if (dayKey(ts) === dayKey(now)) return hhmm(ts);
+  if (dayKey(ts) === dayKey(now.getTime() - 864e5)) return 'Ayer';
+  if (now - d < 6 * 864e5) return d.toLocaleDateString('es', { weekday: 'long' });
+  return `${d.getDate()}/${d.getMonth() + 1}/${String(d.getFullYear()).slice(-2)}`;
+}
+
+/* ---------------- render: list ---------------- */
+const isWide = () => matchMedia('(min-width: 860px)').matches;
+function lastMsg(id) { const l = chatOf(id); return l[l.length - 1]; }
+function renderList() {
+  const q = state.q.trim().toLowerCase();
+  const rows = agents().filter(a => {
+    if (q && !(a.name + ' ' + a.blurb).toLowerCase().includes(q)) return false;
+    if (state.filter === 'combate' && a.group !== 'combate') return false;
+    if (state.filter === 'analisis' && a.group !== 'analisis') return false;
+    if (state.filter === 'unread' && !(state.profile.unread[a.id] > 0)) return false;
+    return true;
+  }).sort((x, y) => (lastMsg(y.id)?.ts || 0) - (lastMsg(x.id)?.ts || 0));
+  const html = rows.map(a => {
+    const m = lastMsg(a.id);
+    const unread = state.profile.unread[a.id] || 0;
+    const typing = !!state.gen[a.id];
+    let prev;
+    if (typing) prev = `<div class="row-prev typing"><span>escribiendo…</span></div>`;
+    else if (m) prev = `<div class="row-prev">${m.role === 'user' ? I.ticks.replace('class="ticks"', `class="ticks${m.read ? ' read' : ''}"`) : ''}<span>${esc(m.error && !m.text ? 'No se pudo responder' : plain(m.text) || (m.files?.length ? m.files.map(f => f.name).join(', ') : ''))}</span></div>`;
+    else prev = `<div class="row-prev"><span>${esc(a.blurb)}</span></div>`;
+    const right = unread ? `<span class="badge">${unread}</span>` : `<span class="row-tag">${a.custom ? 'propio' : a.group === 'combate' ? 'combate' : 'análisis'}</span>`;
+    return `<li><button class="row" type="button" data-open="${a.id}" style="--ah:${hueOf(a)}" ${state.open === a.id ? 'aria-current="true"' : ''}>
+      ${avatar({ ...a, hue: hueOf(a) })}
+      <span class="row-name">${esc(a.name)}</span><span class="row-date ${unread ? 'hot' : ''}">${listDate(m?.ts)}</span>
+      ${prev}${right}</button></li>`;
+  }).join('');
+  $('#chatList').innerHTML = html || `<li class="pane-pad empty-note">Ningún agente coincide.</li>`;
+}
+
+/* ---------------- render: chat ---------------- */
+function applyHue(h) { document.documentElement.style.setProperty('--h', h); }
+function openChat(id) {
+  const a = agentById(id); if (!a) return;
+  state.open = id; state.drawer = false;
+  $('#app').dataset.view = 'chat';
+  applyHue(hueOf(a));
+  $('#chatView').style.setProperty('--pattern', patternUrl(a.glyph));
+  if (state.profile.unread[id]) { state.profile.unread[id] = 0; saveProfile(); }
+  state.pending = [];
+  renderAttach();
+  renderChat(true);
+  renderList();
+  if (isWide()) $('#input').focus();
+}
+function closeChat() {
+  state.open = null; state.drawer = false;
+  $('#app').dataset.view = 'list';
+  applyHue(DEFAULT_HUE);
+  renderChat(); renderList();
+}
+function renderHead() {
+  const a = agentById(state.open); if (!a) return;
+  const c = cfg(a.id);
+  $('#headAv').innerHTML = avatar({ ...a, hue: hueOf(a) }, 'sm');
+  $('#headName').textContent = a.name;
+  const st = $('#headStatus');
+  if (state.gen[a.id]) { st.textContent = 'escribiendo…'; st.classList.add('typing'); }
+  else {
+    st.classList.remove('typing');
+    const parts = [];
+    if (a.custom) parts.push('como ' + a.baseName);
+    parts.push(a.fight ? (c.mode === 'fight' ? `pelea contigo${c.rival ? ' como ' + c.rival : ''}` : 'escribe por ti') : a.blurb);
+    st.textContent = parts.join(' · ');
+  }
+  const busy = !!state.gen[a.id];
+  const btn = $('#btnSend');
+  btn.innerHTML = busy ? I.stop : I.send;
+  btn.setAttribute('aria-label', busy ? 'Detener respuesta' : 'Enviar');
+  const lp = $('#limitPill');
+  lp.hidden = !(c.limit > 0);
+  lp.textContent = c.limit > 0 ? `Límite del chat: ${nf.format(c.limit)} caracteres` : '';
+}
+function bubble(m, first, a) {
+  const c = cfg(a.id);
+  if (m.role === 'user') {
+    const att = m.files?.length ? `<div class="att">${m.files.map(f => f.kind === 'image' && (f.local || f.asset)
+      ? `<img src="${esc(f.local || '/_blob/' + f.asset)}" alt="${esc(f.name)}">`
+      : `<span class="att-file">${I.file}<span>${esc(f.name)}${f.kind === 'text' && f.text ? ` · ${nf.format(countChars(f.text))} car.` : ''}</span></span>`).join('')}</div>` : '';
+    return `<div class="b out ${first ? 'first' : ''}" data-mid="${m.id}">${att}${m.text ? `<div class="txt">${fmt(m.text)}</div>` : ''}
+      <div class="meta"><span>${hhmm(m.ts)}</span>${I.ticks.replace('class="ticks"', `class="ticks${m.read ? ' read' : ''}"`)}</div></div>`;
+  }
+  return `<div class="b in ${first ? 'first' : ''}" data-mid="${m.id}">${agentInner(m, c)}</div>`;
+}
+function agentInner(m, c) {
+  if (m.pending && !m.text) return `<span class="typing-dots" aria-label="escribiendo"><i></i><i></i><i></i></span>`;
+  const n = countChars(m.text);
+  const over = c.limit > 0 && n > c.limit;
+  let html = m.text ? `<div class="txt">${fmt(m.text)}</div>` : '';
+  if (m.error) html += `<div class="err">${esc(m.error)}</div>`;
+  if (m.note) html += `<div class="note">${esc(m.note)}</div>`;
+  const tools = [];
+  if (m.text && !m.pending) {
+    tools.push(`<button class="mbtn" type="button" data-copy="${m.id}">${I.copy}Copiar</button>`);
+    if (over) tools.push(`<button class="mbtn" type="button" data-trim="${m.id}">${I.scissors}Recortar a ${nf.format(c.limit)}</button>`);
+  }
+  if (m.retry && !m.pending) tools.push(`<button class="mbtn" type="button" data-retry="${m.id}">${I.retry}Reintentar</button>`);
+  html += `<div class="meta">${tools.join('')}${m.text ? `<span class="count ${over ? 'over' : ''}">${nf.format(n)} car.</span>` : ''}<span>${hhmm(m.ts)}</span></div>`;
+  return html;
+}
+function renderChat(jump) {
+  const id = state.open;
+  $('#chatEmpty').hidden = !!id;
+  $('#chatView').hidden = !id;
+  if (!id) return;
+  const a = agentById(id);
+  renderHead();
+  const list = chatOf(id);
+  const box = $('#msgs');
+  const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 120;
+  let html = '';
+  let lastDay = '', prevRole = '';
+  const firstTs = list[0]?.ts || Date.now();
+  html += `<div class="day">${dayLabel(firstTs)}</div>`;
+  lastDay = dayKey(firstTs);
+  html += `<div class="b in first intro"><div class="who-tag">${esc(a.name)}</div><div class="txt">${fmt(a.intro)}</div></div>`;
+  prevRole = 'agent';
+  for (const m of list) {
+    const dk = dayKey(m.ts);
+    if (dk !== lastDay) { html += `<div class="day">${dayLabel(m.ts)}</div>`; lastDay = dk; prevRole = ''; }
+    html += bubble(m, m.role !== prevRole, a);
+    prevRole = m.role;
+  }
+  box.innerHTML = html;
+  if (jump || nearBottom) box.scrollTop = box.scrollHeight;
+  const hasUser = list.some(m => m.role === 'user');
+  $('#suggest').innerHTML = hasUser ? '' : a.suggest.map(s => `<button class="sugg" type="button" data-sugg="${esc(s)}">${esc(s)}</button>`).join('');
+  $('#suggest').hidden = hasUser;
+  if (state.drawer) renderDrawer(); else $('#drawer').hidden = true;
+}
+let streamFrame = 0;
+function streamUpdate(agentId, m) {
+  if (state.open !== agentId) return;
+  cancelAnimationFrame(streamFrame);
+  streamFrame = requestAnimationFrame(() => {
+    const el = $(`[data-mid="${m.id}"]`);
+    if (!el) return renderChat();
+    const box = $('#msgs');
+    const near = box.scrollHeight - box.scrollTop - box.clientHeight < 160;
+    el.innerHTML = agentInner(m, cfg(agentId));
+    if (near) box.scrollTop = box.scrollHeight;
+  });
+}
+
+/* ---------------- drawer: per-chat settings ---------------- */
+function renderDrawer() {
+  const a = agentById(state.open); if (!a) return;
+  const c = cfg(a.id);
+  const files = allFiles();
+  const limits = [[0, 'Sin límite'], [1000, '1.000'], [2000, '2.000'], [4000, '4.000']];
+  $('#drawerBody').innerHTML = `
+    <div class="drawer-hero">${avatar({ ...a, hue: hueOf(a) }, 'lg')}<h3>${esc(a.name)}</h3><p>${esc(a.blurb)}</p></div>
+    ${a.fight ? `<div class="field"><span>Modo</span><div class="seg" role="group" aria-label="Modo">
+      <button type="button" data-mode="write" aria-pressed="${c.mode !== 'fight'}">Escribe por mí</button>
+      <button type="button" data-mode="fight" aria-pressed="${c.mode === 'fight'}">Pelea conmigo</button></div>
+      <small>${c.mode === 'fight' ? 'El agente juega como tu rival y te responde cada turno.' : 'El agente redacta las acciones de tu personaje como tú se las ordenes.'}</small></div>` : ''}
+    <label class="field"><span>Tu personaje</span><input class="inp" id="d-mine" value="${esc(c.mine)}" placeholder="Con quién peleas en este chat"></label>
+    <label class="field"><span>Personaje rival</span><input class="inp" id="d-rival" value="${esc(c.rival)}" placeholder="Contra quién"></label>
+    <div class="field"><span>Límite de caracteres</span><div class="pickrow">
+      ${limits.map(([v, l]) => `<button type="button" class="pick" data-limit="${v}" aria-pressed="${c.limit === v}">${l}</button>`).join('')}
+      <input class="inp" id="d-limit" type="number" min="0" step="100" inputmode="numeric" value="${c.limit || ''}" placeholder="Otro" style="width:110px"></div>
+      <small>La app cuenta los caracteres de cada respuesta y marca en rojo si se pasa.</small></div>
+    <div class="field"><span>Profundidad</span><div class="seg" role="group" aria-label="Profundidad">
+      ${[['quick', 'Rápido'], ['default', 'Normal'], ['complex', 'Profundo']].map(([v, l]) => `<button type="button" data-tier="${v}" aria-pressed="${c.tier === v}">${l}</button>`).join('')}</div></div>
+    <label class="field"><span>Instrucciones para este chat</span><textarea class="inp" id="d-extra" rows="3" placeholder="Ej: el rival es dio con the world, no uses velocidad">${esc(c.extra)}</textarea></label>
+    <div class="field"><span>Archivos que lee</span><div class="check-list">
+      ${files.length ? files.map(f => `<label class="check"><input type="checkbox" data-fscope="${f.id}" ${reads(f, a.id) ? 'checked' : ''}><span>${esc(f.name)}</span></label>`).join('') : '<p class="empty-note">Todavía no hay archivos.</p>'}
+    </div></div>
+    <div class="field"><span>Color del chat</span><div class="swatches">
+      ${HUES.map(h => `<button type="button" class="sw" style="--sh:${h}" data-hue="${h}" aria-label="Color ${h}" aria-pressed="${hueOf(a) === h}"></button>`).join('')}</div></div>
+    <div class="danger-zone">
+      <button class="btn danger" type="button" data-confirm="clear">Vaciar chat</button>
+      ${a.custom ? `<button class="btn danger" type="button" data-confirm="delagent">Borrar agente</button>` : ''}
+    </div>`;
+  $('#drawer').hidden = false;
+}
+function setFileScope(f, agentId, on) {
+  const ids = agents().map(a => a.id);
+  let scope = f.scope === 'all' ? [...ids] : [...(f.scope || [])];
+  scope = on ? [...new Set([...scope, agentId])] : scope.filter(x => x !== agentId);
+  if (ids.every(x => scope.includes(x))) scope = 'all';
+  if (f.builtin) { state.profile.fileScopes[f.id] = scope; saveProfile(); }
+  else { const uf = state.files.find(x => x.id === f.id); uf.scope = scope; saveFile(uf); }
+}
+
+/* ---------------- prompt ---------------- */
+function buildSystem(a) {
+  const g = state.profile.gustos;
+  const c = cfg(a.id);
+  const L = [];
+  L.push(`Eres "${a.name}", un agente de la app Battle roleplay: un chat de battle rol (BR) donde cada agente se encarga de una categoría. Respondes como un mensaje de chat a ${g.apodo || 'el usuario'}.`);
+  L.push(`\nTU ESPECIALIDAD\n${a.role}`);
+  if (a.custom && a.instr) L.push(`\nINSTRUCCIONES PROPIAS DE ESTE AGENTE (las escribió el usuario)\n${a.instr}`);
+  if (a.fight) {
+    L.push(c.mode === 'fight'
+      ? `\nMODO PELEA\nTú controlas al personaje rival${c.rival ? ` (${c.rival})` : ''}; el usuario controla a ${c.mine || 'su personaje'}. Responde cada acción suya con la acción de tu personaje en esta misma categoría y en la voz de abajo: puedes defender, esquivar, debunkear dentro del bloque y contraatacar, fiel a la ficha de tu personaje. Nunca escribas lo que hace, siente o decide el personaje del usuario ni declares su resultado. Juega en serio para ganar, sin asspulls: lo que uses tiene que estar en la ficha o ya establecido. Si falta saber quién es tu personaje, pregúntalo en una línea.`
+      : `\nMODO REDACTOR\nEscribes las acciones del personaje del usuario${c.mine ? ` (${c.mine})` : ''} tal como te las ordene. Si pega el texto del rival${c.rival ? ` (${c.rival})` : ''}, sácale las aperturas de sus propias palabras.`);
+  }
+  L.push(`\nQUIÉN ES EL USUARIO Y SUS GUSTOS\n- Apodo: ${g.apodo || 'sin apodo'}\n- Personajes que usa: ${g.personajes || 'no lo dijo'}\n- Universos que le gustan: ${g.universos || 'no lo dijo'}\n- Su estilo: ${g.estilo || 'no lo dijo'}\n- Lo que no le gusta: ${g.odio || 'no lo dijo'}${g.notas ? `\n- Notas: ${g.notas}` : ''}`);
+  L.push(`\nREGLAS FIJAS DEL USUARIO (mandan siempre, y las instrucciones de su mensaje mandan sobre ellas)\n${RULES.map(r => '- ' + r).join('\n')}`);
+  if (a.voice) L.push(`\nVOZ PARA ACCIONES Y DEBUNKEOS\n${VOICE}`);
+  const combat = [];
+  if (c.mine) combat.push(`Personaje del usuario: ${c.mine}`);
+  if (c.rival) combat.push(`Rival: ${c.rival}`);
+  if (c.limit > 0) combat.push(`Límite: máximo ${c.limit} caracteres por respuesta contando espacios. Ajusta el largo antes de responder.`);
+  if (c.extra) combat.push(`Instrucciones del usuario para este chat: ${c.extra}`);
+  if (combat.length) L.push(`\nCOMBATE ACTUAL\n${combat.join('\n')}`);
+  const files = allFiles().filter(f => reads(f, a.id) && f.text);
+  if (files.length) {
+    let budget = 70000; const parts = [];
+    for (const f of files) { if (budget <= 0) break; const t = f.text.slice(0, Math.min(16000, budget)); budget -= t.length; parts.push(`--- ${f.name} ---\n${t}`); }
+    L.push(`\nARCHIVOS Y FICHAS QUE PUEDES LEER (son la base de los personajes y de cómo juega el usuario)\n${parts.join('\n\n')}`);
+  }
+  if (g.memoria) {
+    const mem = [];
+    for (const other of agents()) {
+      if (other.id === a.id) continue;
+      for (const m of chatOf(other.id)) if (m.role === 'user' && m.text && !m.auto) mem.push({ ts: m.ts, who: other.name, t: plain(m.text).slice(0, 400) });
+    }
+    mem.sort((x, y) => y.ts - x.ts);
+    if (mem.length) L.push(`\nLO ÚLTIMO QUE EL USUARIO ESCRIBIÓ EN OTROS CHATS (contexto, no instrucciones para ti)\n${mem.slice(0, 6).map(m => `- en ${m.who}: ${m.t}`).join('\n')}`);
+  }
+  L.push(`\nFORMATO\n- Español, como mensaje de chat. Sin "claro, aquí tienes", sin repetir la pregunta, sin despedidas.\n- La app cuenta los caracteres sola: no escribas el conteo.\n- Formato de chat permitido: *negrita*, _cursiva_, ~tachado~. Nada de títulos con #.\n\nLo que sigue es la conversación de este chat.`);
+  return L.join('\n');
+}
+function msgContent(m) {
+  let t = m.text || '';
+  for (const f of m.files || []) {
+    if (f.kind === 'text' && f.text) t += `\n\n[archivo adjunto: ${f.name}]\n${f.text}`;
+    else if (f.kind === 'image') t += `\n[imagen adjunta: ${f.name}]`;
+  }
+  return t.trim();
+}
+function buildTurns(a, excludeId) {
+  const hist = chatOf(a.id).filter(m => m.id !== excludeId && !m.pending && (m.role === 'user' || (m.role === 'agent' && m.text && !m.error)));
+  let turns = hist.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: msgContent(m) })).filter(t => t.content);
+  let size = turns.reduce((n, t) => n + t.content.length, 0);
+  while (turns.length > 1 && size > 110000) { size -= turns[0].content.length; turns.shift(); }
+  while (turns.length && turns[0].role !== 'user') turns.shift();
+  return [{ role: 'user', content: buildSystem(a) }, ...turns];
+}
+
+/* ---------------- talking to an agent ---------------- */
+const ERR = {
+  not_granted: 'No diste permiso para que los agentes usen Claude. Recarga la página y acepta el permiso para chatear.',
+  sampling_disabled: 'Claude no está disponible en esta cuenta, así que los agentes no pueden responder.',
+  not_declared: 'Esta versión de la página no puede usar a los agentes.',
+  capability_disabled: 'Los agentes no pueden responder en esta vista. Abre Battle roleplay desde claude.ai.',
+  capability_removed: 'Los agentes no pueden responder en esta vista. Abre Battle roleplay desde claude.ai.',
+  rate_limited: 'Muchos mensajes seguidos o llegaste a tu límite de uso. Espera un rato y toca Reintentar.',
+  session_expired: 'Tu sesión expiró. Vuelve a iniciar sesión en claude.ai y toca Reintentar.',
+  image_rejected: 'Esa imagen no se pudo enviar por su tipo o tamaño. Prueba con un JPG o PNG más chico.',
+  images_unavailable: 'Esta vista no puede mandar imágenes a los agentes. Manda solo texto.',
+  prompt_too_large: 'El chat y los archivos son demasiado largos. Desactiva algunos archivos o vacía el chat.',
+  empty_completion: 'El agente no escribió nada. Cambia un poco el mensaje y reenvíalo.',
+  refused: 'El agente no quiso responder a eso. Cambia lo que le pides.',
+};
+const RETRYABLE = new Set(['rate_limited', 'session_expired', 'upstream_error', 'empty_completion', 'timeout']);
+async function generate(agentId, images) {
+  const a = agentById(agentId);
+  const list = chatOf(agentId);
+  const reply = { id: rid(), role: 'agent', text: '', ts: Date.now(), pending: true };
+  list.push(reply);
+  const ctl = new AbortController();
+  state.gen[agentId] = { ctl, id: reply.id };
+  if (state.open === agentId) renderChat(true);
+  renderList();
+  const sample = await samplePromise;
+  if (!sample) {
+    reply.pending = false;
+    reply.error = 'Los agentes no pueden responder en esta vista. Abre Battle roleplay desde claude.ai para chatear con ellos.';
+    return finish();
+  }
+  let started = false;
+  try {
+    const res = await sample(buildTurns(a, reply.id), {
+      cache: false, signal: ctl.signal, modelTier: cfg(agentId).tier || 'default',
+      ...(images?.length ? { images } : {}),
+      onText: ({ text }) => {
+        reply.text = text;
+        if (!started) { started = true; list.forEach(m => { if (m.role === 'user') m.read = true; }); if (state.open === agentId) renderChat(); }
+        streamUpdate(agentId, reply);
+      },
+    });
+    reply.text = res.text;
+    if (res.truncated) reply.note = 'Se cortó por largo. Escríbele "sigue" para que termine.';
+  } catch (e) {
+    const code = e?.code || 'upstream_error';
+    if (code === 'cancelled') { reply.text = e.text || ''; reply.note = 'Detuviste la respuesta.'; }
+    else if (code === 'refused') { reply.text = ''; reply.error = ERR.refused; }
+    else { reply.text = e?.text || ''; reply.error = ERR[code] || 'Se cortó la conexión con el agente. Toca Reintentar.'; reply.retry = RETRYABLE.has(code) || !ERR[code]; }
+  }
+  reply.pending = false;
+  list.forEach(m => { if (m.role === 'user') m.read = true; });
+  finish();
+  function finish() {
+    delete state.gen[agentId];
+    if (!reply.text && !reply.error) list.splice(list.indexOf(reply), 1);
+    const seen = state.open === agentId && !document.hidden;
+    if (!seen && reply.text) { state.profile.unread[agentId] = (state.profile.unread[agentId] || 0) + 1; saveProfile(); }
+    if (state.open === agentId) renderChat(); else renderList();
+    renderList();
+    saveChat(agentId);
+  }
+}
+async function send() {
+  const id = state.open; if (!id) return;
+  if (state.gen[id]) { state.gen[id].ctl.abort(); return; }
+  const ta = $('#input');
+  const text = ta.value.trim();
+  if (!text && !state.pending.length) return;
+  const files = state.pending.map(p => ({ name: p.name, kind: p.kind, text: p.text, local: p.local, blob: p.blob }));
+  const images = files.filter(f => f.kind === 'image').map(f => f.blob);
+  const msg = { id: rid(), role: 'user', text, ts: Date.now(), files: files.length ? files.map(({ blob, ...f }) => f) : undefined };
+  chatOf(id).push(msg);
+  ta.value = ''; autosize();
+  state.pending = []; renderAttach();
+  saveChat(id);
+  if (assets && images.length) {
+    files.forEach((f, i) => {
+      if (f.kind !== 'image') return;
+      assets.upload(f.blob).then(r => { const mf = msg.files[i]; mf.asset = r.id; saveChat(id); }).catch(() => {});
+    });
+  }
+  generate(id, images);
+}
+
+/* ---------------- attachments ---------------- */
+const TEXT_EXT = /\.(txt|md|markdown|json|csv|log|html?)$/i;
+function refreshAccept() {
+  const imgs = sampleLimits?.images?.mediaTypes || [];
+  $('#fileInput').accept = ['.txt', '.md', '.markdown', '.json', '.csv', '.log', 'text/plain', 'text/markdown', ...imgs].join(',');
+}
+refreshAccept();
+async function addAttachments(fileList) {
+  for (const f of fileList) {
+    if (f.type.startsWith('image/')) {
+      const ok = sampleLimits?.images;
+      if (!ok) { toast('Esta vista no puede mandar imágenes a los agentes.'); continue; }
+      if (!ok.mediaTypes.includes(f.type)) { toast(`${f.name}: usa JPG, PNG, WebP o GIF.`); continue; }
+      if (f.size > ok.maxInputBytes) { toast(`${f.name} pesa demasiado.`); continue; }
+      if (state.pending.filter(p => p.kind === 'image').length >= ok.maxCount) { toast(`Máximo ${ok.maxCount} imágenes por mensaje.`); continue; }
+      state.pending.push({ id: rid(), name: f.name, kind: 'image', blob: f, local: URL.createObjectURL(f) });
+    } else if (f.type.startsWith('text/') || TEXT_EXT.test(f.name) || f.type === 'application/json') {
+      let text = await f.text();
+      if (text.length > 30000) { text = text.slice(0, 30000); toast(`${f.name} es largo: se mandan los primeros 30.000 caracteres. Para fichas largas usa Archivos.`); }
+      state.pending.push({ id: rid(), name: f.name, kind: 'text', text });
+    } else toast(`${f.name}: solo se pueden adjuntar textos (.txt, .md) e imágenes.`);
+  }
+  renderAttach();
+}
+function renderAttach() {
+  const row = $('#attachRow');
+  row.hidden = !state.pending.length;
+  row.innerHTML = state.pending.map(p => `<span class="pend">${p.kind === 'image' ? `<img src="${esc(p.local)}" alt="">` : I.file}<span>${esc(p.name)}</span><button type="button" data-unpend="${p.id}" aria-label="Quitar ${esc(p.name)}">${I.x}</button></span>`).join('');
+}
+
+/* ---------------- files pane ---------------- */
+function scopeLabel(f) {
+  if (f.scope === 'all') return 'Lo leen todos';
+  const names = (f.scope || []).map(id => agentById(id)?.name).filter(Boolean);
+  return names.length ? 'Lo leen: ' + names.join(', ') : 'Ningún agente lo lee';
+}
+function renderFiles() {
+  const files = allFiles();
+  $('#fileList').innerHTML = files.map(f => `<li><button class="file-row" type="button" data-file="${f.id}">
+    <span class="file-ico">${f.builtin ? I.lock : I.file}</span>
+    <span class="file-name">${esc(f.name)}</span><span class="file-kind">${f.builtin ? 'guía' : 'tuyo'}</span>
+    <span class="file-meta">${nf.format(countChars(f.text))} car. · ${esc(scopeLabel(f))}</span></button></li>`).join('')
+    + (state.files.length ? '' : `<li class="empty-note">Tus fichas van aquí. Escribe una con "Escribir archivo" o sube un .txt.</li>`);
+}
+function fileEditor(fileId) {
+  const existing = fileId ? allFiles().find(f => f.id === fileId) : null;
+  const f = existing ? { ...existing, scope: existing.scope === 'all' ? 'all' : [...(existing.scope || [])] } : { id: 'f-' + rid(), name: '', text: '', scope: 'all', ts: Date.now() };
+  const ro = !!f.builtin;
+  const list = agents();
+  const pickHtml = () => `<button type="button" class="pick" data-sc="all" aria-pressed="${f.scope === 'all'}">Todos</button>` +
+    list.map(a => `<button type="button" class="pick" data-sc="${a.id}" aria-pressed="${f.scope !== 'all' && f.scope.includes(a.id)}">${esc(a.name)}</button>`).join('');
+  openSheet(`
+    <div class="sheet-head"><h3>${existing ? (ro ? 'Guía' : 'Editar archivo') : 'Nuevo archivo'}</h3><button class="icon-btn" type="button" data-close aria-label="Cerrar">${I.close}</button></div>
+    <div class="sheet-body">
+      <label class="field"><span>Nombre</span><input class="inp" id="fe-name" value="${esc(f.name)}" ${ro ? 'readonly' : ''} placeholder="Ej: Ficha de makima sukuna"></label>
+      <label class="field"><span>Contenido</span><textarea class="inp big" id="fe-text" ${ro ? 'readonly' : ''} placeholder="Habilidades, stats, pasivas, lore, lo que el agente deba saber">${esc(f.text)}</textarea><small id="fe-count"></small></label>
+      <div class="field"><span>Quién lo lee</span><div class="pickrow" id="fe-scope">${pickHtml()}</div></div>
+    </div>
+    <div class="sheet-foot">
+      ${existing && !ro ? `<button class="btn danger grow" type="button" data-confirm="delfile">Borrar</button>` : ''}
+      <button class="btn" type="button" data-close>Cancelar</button>
+      <button class="btn primary" type="button" id="fe-save">Guardar</button>
+    </div>`, sheet => {
+    const count = () => { $('#fe-count', sheet).textContent = `${nf.format(countChars($('#fe-text', sheet).value))} caracteres`; };
+    count();
+    $('#fe-text', sheet).addEventListener('input', count);
+    $('#fe-scope', sheet).addEventListener('click', e => {
+      const b = e.target.closest('[data-sc]'); if (!b) return;
+      const v = b.dataset.sc;
+      if (v === 'all') f.scope = f.scope === 'all' ? [] : 'all';
+      else {
+        let s = f.scope === 'all' ? list.map(a => a.id) : f.scope;
+        s = s.includes(v) ? s.filter(x => x !== v) : [...s, v];
+        f.scope = list.every(a => s.includes(a.id)) ? 'all' : s;
+      }
+      $('#fe-scope', sheet).innerHTML = pickHtml();
+    });
+    sheet.addEventListener('confirmed', e => {
+      if (e.detail !== 'delfile') return;
+      state.files = state.files.filter(x => x.id !== f.id);
+      deleteFile(f.id); closeSheet(); renderFiles(); toast('Archivo borrado');
+    });
+    $('#fe-save', sheet).addEventListener('click', () => {
+      if (ro) { state.profile.fileScopes[f.id] = f.scope; saveProfile(); closeSheet(); renderFiles(); toast('Guardado'); return; }
+      const name = $('#fe-name', sheet).value.trim();
+      const text = $('#fe-text', sheet).value;
+      if (!name) { $('#fe-name', sheet).focus(); toast('Ponle un nombre al archivo.'); return; }
+      const rec = { id: f.id, name, text: text.slice(0, 120000), scope: f.scope, ts: Date.now() };
+      const i = state.files.findIndex(x => x.id === f.id);
+      if (i >= 0) state.files[i] = rec; else state.files.push(rec);
+      saveFile(rec); closeSheet(); renderFiles(); toast('Archivo guardado');
+    });
+  });
+}
+
+/* ---------------- new agent ---------------- */
+function agentEditor() {
+  let hue = HUES[8], baseId = 'simple';
+  openSheet(`
+    <div class="sheet-head"><h3>Nuevo agente</h3><button class="icon-btn" type="button" data-close aria-label="Cerrar">${I.close}</button></div>
+    <div class="sheet-body">
+      <label class="field"><span>Nombre</span><input class="inp" id="na-name" placeholder="Ej: Rival Gojo, Juez, Lore JJK"></label>
+      <label class="field"><span>Trabaja como</span><select class="inp" id="na-base">${BASE.map(b => `<option value="${b.id}">${esc(b.name)} · ${esc(b.blurb)}</option>`).join('')}</select></label>
+      <label class="field"><span>Qué hace, en una línea</span><input class="inp" id="na-blurb" placeholder="Ej: Pelea conmigo usando a gojo"></label>
+      <label class="field"><span>Instrucciones</span><textarea class="inp" id="na-instr" rows="5" placeholder="Todo lo que este agente debe saber o hacer siempre"></textarea></label>
+      <div class="field"><span>Color</span><div class="swatches" id="na-hue">${HUES.map(h => `<button type="button" class="sw" style="--sh:${h}" data-h="${h}" aria-label="Color ${h}" aria-pressed="${h === hue}"></button>`).join('')}</div></div>
+    </div>
+    <div class="sheet-foot"><button class="btn" type="button" data-close>Cancelar</button><button class="btn primary" type="button" id="na-save">Crear agente</button></div>`, sheet => {
+    $('#na-hue', sheet).addEventListener('click', e => {
+      const b = e.target.closest('[data-h]'); if (!b) return;
+      hue = +b.dataset.h; $$('[data-h]', sheet).forEach(x => x.setAttribute('aria-pressed', String(+x.dataset.h === hue)));
+    });
+    $('#na-save', sheet).addEventListener('click', () => {
+      const name = $('#na-name', sheet).value.trim();
+      if (!name) { $('#na-name', sheet).focus(); toast('Ponle un nombre al agente.'); return; }
+      baseId = $('#na-base', sheet).value;
+      const id = 'c-' + rid();
+      state.profile.agents.push({ id, name, base: baseId, hue, blurb: $('#na-blurb', sheet).value.trim(), instr: $('#na-instr', sheet).value.trim() });
+      saveProfile(); closeSheet(); setTab('chats'); openChat(id); toast('Agente creado');
+    });
+    $('#na-name', sheet).focus();
+  });
+}
+
+/* ---------------- gustos ---------------- */
+const GF = ['apodo', 'personajes', 'universos', 'estilo', 'odio', 'notas'];
+function renderGustos() {
+  const g = state.profile.gustos;
+  for (const k of GF) { const el = $('#g-' + k); if (document.activeElement !== el) el.value = g[k] || ''; }
+  $('#g-memoria').checked = !!g.memoria;
+}
+$('#rulesList').innerHTML = RULES.map(r => `<li>${esc(r)}</li>`).join('');
+for (const k of GF) $('#g-' + k).addEventListener('input', e => { state.profile.gustos[k] = e.target.value; saveProfile(); });
+$('#g-memoria').addEventListener('change', e => { state.profile.gustos.memoria = e.target.checked; saveProfile(); });
+
+/* ---------------- sheet + toast ---------------- */
+let lastFocus = null;
+function openSheet(html, mount) {
+  lastFocus = document.activeElement;
+  const s = $('#sheet'); s.innerHTML = html; $('#sheetWrap').hidden = false;
+  mount?.(s);
+}
+function closeSheet() { $('#sheetWrap').hidden = true; $('#sheet').innerHTML = ''; lastFocus?.focus?.(); }
+$('#sheetWrap').addEventListener('click', e => { if (e.target.id === 'sheetWrap' || e.target.closest('[data-close]')) closeSheet(); });
+let toastTimer;
+function toast(t) { const el = $('#toast'); el.textContent = t; el.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.hidden = true; }, 2600); }
+
+/* two-step confirm buttons anywhere */
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-confirm]'); if (!b) return;
+  if (b.dataset.armed) {
+    delete b.dataset.armed;
+    b.dispatchEvent(new CustomEvent('confirmed', { detail: b.dataset.confirm, bubbles: true }));
+    return;
+  }
+  b.dataset.armed = '1'; b.dataset.label = b.textContent; b.textContent = 'Toca otra vez para confirmar';
+  setTimeout(() => { if (b.dataset.armed) { delete b.dataset.armed; b.textContent = b.dataset.label; } }, 3500);
+}, true);
+
+/* ---------------- tabs + events ---------------- */
+function setTab(t) {
+  state.tab = t;
+  $$('.tab').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
+  $('#pane-chats').hidden = t !== 'chats';
+  $('#pane-files').hidden = t !== 'files';
+  $('#pane-gustos').hidden = t !== 'gustos';
+  $('#fabNew').hidden = t !== 'chats';
+  if (t === 'files') renderFiles();
+  if (t === 'gustos') renderGustos();
+}
+function renderAll() { renderList(); renderChat(); renderGustos(); if (state.tab === 'files') renderFiles(); }
+
+$$('.tab').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab)));
+$('#filters').addEventListener('click', e => {
+  const b = e.target.closest('[data-f]'); if (!b) return;
+  state.filter = b.dataset.f;
+  $$('#filters .chip').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  renderList();
+});
+$('#q').addEventListener('input', e => { state.q = e.target.value; renderList(); });
+$('#chatList').addEventListener('click', e => { const b = e.target.closest('[data-open]'); if (b) openChat(b.dataset.open); });
+$('#fabNew').addEventListener('click', agentEditor);
+$('#btnBack').addEventListener('click', closeChat);
+const toggleDrawer = () => { state.drawer = !state.drawer; if (state.drawer) renderDrawer(); else $('#drawer').hidden = true; };
+$('#btnSettings').addEventListener('click', toggleDrawer);
+$('#btnWho').addEventListener('click', toggleDrawer);
+$('#btnCloseDrawer').addEventListener('click', () => { state.drawer = false; $('#drawer').hidden = true; });
+
+$('#drawerBody').addEventListener('click', e => {
+  const id = state.open; const t = e.target;
+  const mode = t.closest('[data-mode]'); if (mode) { setCfg(id, { mode: mode.dataset.mode }); renderDrawer(); renderHead(); return; }
+  const lim = t.closest('[data-limit]'); if (lim) { setCfg(id, { limit: +lim.dataset.limit }); renderDrawer(); renderChat(); return; }
+  const tier = t.closest('[data-tier]'); if (tier) { setCfg(id, { tier: tier.dataset.tier }); renderDrawer(); return; }
+  const hue = t.closest('[data-hue]'); if (hue) { setCfg(id, { hue: +hue.dataset.hue }); applyHue(+hue.dataset.hue); renderDrawer(); renderHead(); renderList(); return; }
+});
+$('#drawerBody').addEventListener('change', e => {
+  const t = e.target; const id = state.open;
+  if (t.dataset.fscope) { const f = allFiles().find(x => x.id === t.dataset.fscope); if (f) setFileScope(f, id, t.checked); }
+  if (t.id === 'd-limit') { setCfg(id, { limit: Math.max(0, parseInt(t.value, 10) || 0) }); renderDrawer(); renderChat(); }
+});
+let cfgTimer;
+$('#drawerBody').addEventListener('input', e => {
+  const t = e.target; const id = state.open;
+  const key = { 'd-mine': 'mine', 'd-rival': 'rival', 'd-extra': 'extra' }[t.id];
+  if (!key) return;
+  state.profile.chatCfg[id] = { ...(state.profile.chatCfg[id] || {}), [key]: t.value };
+  clearTimeout(cfgTimer); cfgTimer = setTimeout(() => { saveProfile(); renderHead(); }, 400);
+});
+$('#drawerBody').addEventListener('confirmed', e => {
+  const id = state.open;
+  if (e.detail === 'clear') { state.chats[id] = []; saveChat(id); state.drawer = false; renderChat(); renderList(); toast('Chat vaciado'); }
+  if (e.detail === 'delagent') {
+    state.profile.agents = state.profile.agents.filter(a => a.id !== id);
+    delete state.profile.chatCfg[id]; delete state.chats[id];
+    saveProfile(); if (db) dbWrite('chat:' + id, () => ({ ref: db.doc(base + '/chat-' + id), del: true }));
+    closeChat(); toast('Agente borrado');
+  }
+});
+
+$('#msgs').addEventListener('click', async e => {
+  const id = state.open;
+  const cp = e.target.closest('[data-copy]');
+  if (cp) {
+    const m = chatOf(id).find(x => x.id === cp.dataset.copy); if (!m) return;
+    try { await navigator.clipboard.writeText(m.text); toast('Copiado'); }
+    catch {
+      const txt = cp.closest('.b').querySelector('.txt');
+      const r = document.createRange(); r.selectNodeContents(txt);
+      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      toast('Texto seleccionado: cópialo con el menú del sistema');
+    }
+    return;
+  }
+  const tr = e.target.closest('[data-trim]');
+  if (tr && !state.gen[id]) {
+    const lim = cfg(id).limit;
+    chatOf(id).push({ id: rid(), role: 'user', auto: true, ts: Date.now(), text: `Recorta tu último texto a máximo ${lim} caracteres. Misma jugada y mismo orden, sin nerfear nada, solo comprime.` });
+    saveChat(id); generate(id);
+    return;
+  }
+  const rt = e.target.closest('[data-retry]');
+  if (rt && !state.gen[id]) {
+    const list = chatOf(id); const i = list.findIndex(x => x.id === rt.dataset.retry);
+    if (i >= 0) list.splice(i, 1);
+    generate(id);
+  }
+});
+$('#suggest').addEventListener('click', e => {
+  const b = e.target.closest('[data-sugg]'); if (!b) return;
+  const ta = $('#input'); ta.value = b.dataset.sugg; autosize(); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+});
+$('#attachRow').addEventListener('click', e => {
+  const b = e.target.closest('[data-unpend]'); if (!b) return;
+  state.pending = state.pending.filter(p => p.id !== b.dataset.unpend); renderAttach();
+});
+$('#composer').addEventListener('submit', e => { e.preventDefault(); send(); });
+const ta = $('#input');
+function autosize() { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 220) + 'px'; }
+ta.addEventListener('input', autosize);
+ta.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && matchMedia('(pointer: fine)').matches) { e.preventDefault(); send(); }
+});
+ta.addEventListener('paste', e => {
+  const files = [...(e.clipboardData?.files || [])];
+  if (files.length) { e.preventDefault(); addAttachments(files); }
+});
+$('#btnClip').addEventListener('click', () => $('#fileInput').click());
+$('#fileInput').addEventListener('change', e => { addAttachments([...e.target.files]); e.target.value = ''; });
+const chatEl = $('#chat');
+chatEl.addEventListener('dragover', e => { if (state.open && e.dataTransfer?.types?.includes('Files')) { e.preventDefault(); chatEl.classList.add('dropping'); } });
+chatEl.addEventListener('dragleave', e => { if (!chatEl.contains(e.relatedTarget)) chatEl.classList.remove('dropping'); });
+chatEl.addEventListener('drop', e => { e.preventDefault(); chatEl.classList.remove('dropping'); if (state.open) addAttachments([...e.dataTransfer.files]); });
+
+$('#btnWriteFile').addEventListener('click', () => fileEditor(null));
+$('#btnUploadFile').addEventListener('click', () => $('#libInput').click());
+$('#libInput').addEventListener('change', async e => {
+  let n = 0;
+  for (const f of e.target.files) {
+    let text = await f.text();
+    if (text.length > 120000) { text = text.slice(0, 120000); toast(`${f.name} se recortó a 120.000 caracteres.`); }
+    const rec = { id: 'f-' + rid(), name: f.name.replace(/\.[^.]+$/, ''), text, scope: 'all', ts: Date.now() };
+    state.files.push(rec); saveFile(rec); n++;
+  }
+  e.target.value = '';
+  renderFiles(); if (n) toast(n === 1 ? 'Archivo subido' : `${n} archivos subidos`);
+});
+$('#fileList').addEventListener('click', e => { const b = e.target.closest('[data-file]'); if (b) fileEditor(b.dataset.file); });
+
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (!$('#sheetWrap').hidden) closeSheet();
+  else if (state.drawer) { state.drawer = false; $('#drawer').hidden = true; }
+});
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && state.open && state.profile.unread[state.open]) { state.profile.unread[state.open] = 0; saveProfile(); renderList(); }
+});
+matchMedia('(min-width: 860px)').addEventListener('change', () => { if (!state.open) applyHue(DEFAULT_HUE); });
+
+setTab('chats');
+applyHue(DEFAULT_HUE);
+boot();
+})();
+</script>
