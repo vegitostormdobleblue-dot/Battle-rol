@@ -557,6 +557,7 @@ textarea.big { min-height: 260px; font-size: 14px; }
           <div><strong>Recordar automáticamente</strong><p>Los agentes guardan en Recuerdos lo importante que digas, sin que lo pidas.</p></div>
           <label class="switch"><span class="vh">Recordar automáticamente</span><input type="checkbox" id="g-autorec"><i></i></label>
         </div>
+        <div class="field" id="restoreBox" hidden><span>Agentes originales eliminados</span><button class="btn" type="button" id="btnRestore" data-confirm="restore-base">Restaurar agentes originales</button><small>Vuelven vacíos, sin la memoria que se borró.</small></div>
         <details class="rules">
           <summary>Reglas que siguen todos los agentes</summary>
           <ul id="rulesList"></ul>
@@ -956,7 +957,7 @@ const BUILTIN = [
 
 /* ---------------- state ---------------- */
 const state = {
-  profile: { gustos: { ...DEFAULT_GUSTOS }, agents: [], chatCfg: {}, fileScopes: {}, unread: {}, hidden: {} },
+  profile: { gustos: { ...DEFAULT_GUSTOS }, agents: [], chatCfg: {}, fileScopes: {}, unread: {}, hidden: {}, deleted: {} },
   recuerdos: [],
   editing: null,
   chats: {},
@@ -975,7 +976,7 @@ const countChars = s => Array.from(String(s || '').replace(/\n/g, '')).length;
 const nf = new Intl.NumberFormat('es-CL');
 
 function agents() {
-  return [...BASE, ...state.profile.agents.map(c => {
+  return [...BASE.filter(b => !state.profile.deleted?.[b.id]), ...state.profile.agents.map(c => {
     const b = BASE.find(x => x.id === c.base) || BASE[0];
     return { ...b, id: c.id, name: c.name, hue: c.hue ?? b.hue, blurb: c.blurb || b.blurb, custom: true, instr: c.instr || '', baseName: b.name,
       intro: `Soy ${c.name}. ${c.blurb || b.blurb}. Trabajo como ${b.name} con tus instrucciones propias.` };
@@ -1100,7 +1101,7 @@ function mergeProfile(p) {
   state.profile = {
     gustos: { ...DEFAULT_GUSTOS, ...(p.gustos || {}) },
     agents: Array.isArray(p.agents) ? p.agents : [],
-    chatCfg: p.chatCfg || {}, fileScopes: p.fileScopes || {}, unread: p.unread || {}, hidden: p.hidden || {},
+    chatCfg: p.chatCfg || {}, fileScopes: p.fileScopes || {}, unread: p.unread || {}, hidden: p.hidden || {}, deleted: p.deleted || {},
   };
 }
 const timeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej({ code: 'timeout' }), ms))]);
@@ -1111,10 +1112,10 @@ async function boot() {
   renderAll();
   if (isWide()) openChat('simple');
   const [d, u] = await Promise.all([use('db'), use('user')]);
-  if (!d || !u) return setStoreNote(false);
+  if (!d || !u) { migrateHidden(); renderAll(); return setStoreNote(false); }
   let uid = null;
   try { uid = await u.id(); } catch {}
-  if (!uid) return setStoreNote(false);
+  if (!uid) { migrateHidden(); renderAll(); return setStoreNote(false); }
   db = d; base = 'data/users/' + uid;
   try {
     const [snap, fsnap] = await timeout(Promise.all([db.collection(base).get(), profileRef().collection('files').get()]), 10000);
@@ -1131,6 +1132,7 @@ async function boot() {
       if (!state.dirty.files) state.files = fsnap.docs.map(s => ({ id: s.id, ...thaw(s.data()) }));
     }
     if (docs.recuerdos && !state.dirty.recuerdos) state.recuerdos = Array.isArray(docs.recuerdos.items) ? docs.recuerdos.items : [];
+    migrateHidden();
     setStoreNote(true);
     renderAll();
   } catch {
@@ -1207,10 +1209,7 @@ function renderList() {
   const newRow = state.filter === 'all' && !q ? `<li><button class="row new" type="button" data-new-agent>
       <span class="av" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
       <span class="row-name">Nuevo agente</span><span></span><div class="row-prev"><span>Créalo con tu nombre, color e instrucciones</span></div></button></li>` : '';
-  const nHidden = agents().filter(a => state.profile.hidden?.[a.id]).length;
-  const hiddenRow = nHidden && state.filter === 'all' && !q ? `<li><button class="row new hidden-row" type="button" data-show-hidden>
-      <span class="av" aria-hidden="true">${I.pin}</span><span class="row-name">Agentes ocultos (${nHidden})</span><span></span><div class="row-prev"><span>Toca para volver a mostrarlos</span></div></button></li>` : '';
-  $('#chatList').innerHTML = newRow + (html || `<li class="pane-pad empty-note">Ningún agente coincide.</li>`) + hiddenRow;
+  $('#chatList').innerHTML = newRow + (html || `<li class="pane-pad empty-note">${agents().length ? 'Ningún agente coincide.' : 'No tienes agentes. Crea uno con «Nuevo agente».'}</li>`);
 }
 
 /* ---------------- render: chat ---------------- */
@@ -1427,7 +1426,7 @@ function renderDrawer() {
       ${chatOf(a.id).some(m => m.error && !m.text && !m.pending) ? `<button class="btn danger" type="button" data-confirm="clearerrors">Borrar errores (${chatOf(a.id).filter(m => m.error && !m.text && !m.pending).length})</button>` : ''}
       <button class="btn danger" type="button" data-confirm="clear">Vaciar chat</button>
       <small style="flex-basis:100%">Lo que borras sale también de la memoria compartida de los agentes.</small>
-      ${a.custom ? `<button class="btn danger" type="button" data-confirm="delagent">Borrar agente</button>` : `<button class="btn danger" type="button" data-confirm="delchat">Eliminar chat</button>`}
+      <button class="btn danger" type="button" data-confirm="delagent">Eliminar agente</button>
     </div>`;
   $('#drawer').hidden = false;
 }
@@ -1599,6 +1598,7 @@ async function generate(agentId, images, opts = {}) {
   finish();
   function finish() {
     delete state.gen[agentId];
+    if (!agentById(agentId)) { renderList(); return; }
     if (!reply.text && !reply.error) list.splice(list.indexOf(reply), 1);
     const seen = state.open === agentId && !document.hidden;
     if (!seen && reply.text) { state.profile.unread[agentId] = (state.profile.unread[agentId] || 0) + 1; saveProfile(); }
@@ -2286,10 +2286,14 @@ function renderGustos() {
   $('#g-memoria').checked = !!g.memoria;
   $('#g-internet').checked = g.internet !== false;
   $('#g-autorec').checked = g.autoRecordar !== false;
+  const nDel = BASE.filter(b => state.profile.deleted?.[b.id]).length;
+  $('#restoreBox').hidden = !nDel;
+  if (!$('#btnRestore').dataset.armed) $('#btnRestore').textContent = `Restaurar agentes originales (${nDel})`;
 }
 $('#rulesList').innerHTML = RULES.map(r => `<li>${esc(r)}</li>`).join('');
 for (const k of GF) $('#g-' + k).addEventListener('input', e => { state.profile.gustos[k] = e.target.value; saveProfile(); });
 $('#g-memoria').addEventListener('change', e => { state.profile.gustos.memoria = e.target.checked; saveProfile(); });
+$('#btnRestore').addEventListener('confirmed', () => { state.profile.deleted = {}; saveProfile(); renderList(); renderGustos(); toast('Agentes originales restaurados, vacíos'); });
 $('#g-autorec').addEventListener('change', e => { state.profile.gustos.autoRecordar = e.target.checked; saveProfile(); toast(e.target.checked ? 'Recordar automáticamente activado' : 'Recordar automáticamente apagado'); });
 $('#g-internet').addEventListener('change', async e => {
   state.profile.gustos.internet = e.target.checked; saveProfile();
@@ -2406,38 +2410,58 @@ $('#drawerBody').addEventListener('confirmed', e => {
     saveChat(id); renderChat(); renderList(); renderDrawer();
     toast(`${before - chatOf(id).length} errores borrados`);
   }
-  if (e.detail === 'delagent' || e.detail === 'delchat') { removeChat(id); toast('Chat eliminado'); }
+  if (e.detail === 'delagent' || e.detail === 'delchat') { removeChat(id); toast('Agente eliminado con toda su memoria'); }
 });
+/* deleting an agent erases all of its memory: chat, settings, memories saved in it, file access */
+function purgeAgentData(id) {
+  delete state.chats[id];
+  state.dirty.chats.delete(id);
+  if (db) dbWrite('chat:' + id, () => ({ ref: db.doc(base + '/chat-' + id), del: true })); else lsWrite();
+  delete state.profile.chatCfg[id]; delete state.profile.unread[id]; delete state.skip?.[id];
+  const nRec = state.recuerdos.length;
+  state.recuerdos = state.recuerdos.filter(r => r.from !== id);
+  if (state.recuerdos.length !== nRec) saveRecuerdos();
+  for (const f of state.files) if (Array.isArray(f.scope) && f.scope.includes(id)) { f.scope = f.scope.filter(x => x !== id); saveFile(f); }
+  for (const [fid, sc] of Object.entries(state.profile.fileScopes)) if (Array.isArray(sc) && sc.includes(id)) state.profile.fileScopes[fid] = sc.filter(x => x !== id);
+}
 function removeChat(id) {
   const a = agentById(id); if (!a) return;
   if (state.gen[id]) state.gen[id].ctl.abort();
-  if (a.custom) {
-    state.profile.agents = state.profile.agents.filter(x => x.id !== id);
-    delete state.profile.chatCfg[id]; delete state.chats[id];
-    if (db) dbWrite('chat:' + id, () => ({ ref: db.doc(base + '/chat-' + id), del: true })); else lsWrite();
-  } else {
-    state.chats[id] = []; saveChat(id);
-    state.profile.hidden = { ...(state.profile.hidden || {}), [id]: true };
-  }
-  delete state.profile.unread[id];
+  purgeAgentData(id);
+  if (a.custom) state.profile.agents = state.profile.agents.filter(x => x.id !== id);
+  else state.profile.deleted = { ...(state.profile.deleted || {}), [id]: true };
+  if (state.profile.hidden?.[id]) { const h = { ...state.profile.hidden }; delete h[id]; state.profile.hidden = h; }
   saveProfile();
   if (state.open === id) closeChat(); else renderList();
+  if (state.tab === 'recuerdos') renderRecuerdos();
+}
+/* agents hidden by the old "Eliminar" are now deleted for real */
+function migrateHidden() {
+  const ids = Object.keys(state.profile.hidden || {}).filter(k => state.profile.hidden[k]);
+  if (!ids.length) return;
+  for (const id of ids) {
+    purgeAgentData(id);
+    if (BASE.some(b => b.id === id)) state.profile.deleted = { ...(state.profile.deleted || {}), [id]: true };
+    else state.profile.agents = state.profile.agents.filter(x => x.id !== id);
+  }
+  state.profile.hidden = {};
+  saveProfile();
 }
 function openChatActions(id) {
   const a = agentById(id); if (!a) return;
   openSheet(`<div class="sheet-head"><button class="icon-btn" type="button" data-close aria-label="Cerrar">${I.close}</button><h3>${esc(a.name)}</h3></div>
     <div class="sheet-body">
-      <p class="sec-sub">${a.custom ? 'Eliminar borra este agente y todos sus mensajes.' : 'Eliminar quita este chat de la lista y borra sus mensajes. Puedes volver a mostrarlo desde «Agentes ocultos», al final de la lista.'}</p>
+      <p class="sec-sub">Eliminar borra este agente para siempre con toda su memoria: mensajes, ajustes y los recuerdos que se guardaron en este chat. No se puede deshacer.</p>
       <div class="pickrow">
         <button class="btn" type="button" data-act-open>Abrir chat</button>
         <button class="btn danger" type="button" data-confirm="act-clear">Vaciar chat</button>
-        <button class="btn danger" type="button" data-confirm="act-remove">Eliminar chat</button>
+        <button class="btn danger" type="button" data-confirm="act-remove">Eliminar agente</button>
       </div>
     </div>`, sheet => {
     sheet.addEventListener('click', e => { if (e.target.closest('[data-act-open]')) { closeSheet(); setTab('chats'); openChat(id); } });
     sheet.addEventListener('confirmed', e => {
       if (e.detail === 'act-clear') { state.chats[id] = []; saveChat(id); closeSheet(); renderList(); if (state.open === id) renderChat(); toast('Chat vaciado'); }
-      if (e.detail === 'act-remove') { closeSheet(); removeChat(id); toast('Chat eliminado'); }
+      if (e.detail === 'act-remove') { closeSheet(); removeChat(id); toast('Agente eliminado con toda su memoria'); }
     });
   });
 }
