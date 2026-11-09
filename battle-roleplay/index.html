@@ -188,7 +188,7 @@ svg { display: block; flex: none; }
 .fab:hover { filter: brightness(1.06); }
 
 .tabs {
-  display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line);
+  display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line);
   padding: 6px var(--gr) 8px var(--gl); background: var(--panel);
 }
 .tab { display: grid; justify-items: center; gap: 3px; padding: 4px 0; color: var(--fg-2); font-size: 12.5px; font-weight: 600; }
@@ -384,6 +384,27 @@ textarea.inp { resize: vertical; min-height: 84px; line-height: 1.45; }
 .trace ol, .trace ul { margin: 6px 0 2px; padding-left: 20px; display: grid; gap: 5px; color: var(--meta); }
 .trace a { color: var(--accent); }
 
+/* memories, system notes, edit bar */
+.sys { align-self: center; max-width: min(90%, 520px); display: flex; align-items: flex-start; gap: 6px; margin: 6px 0; padding: 6px 12px; border-radius: 8px; background: color-mix(in srgb, hsl(44 90% 55%) 16%, var(--in)); color: var(--in-fg); font-size: 13px; box-shadow: var(--shadow); overflow-wrap: anywhere; }
+.sys svg { width: 15px; height: 15px; flex: none; margin-top: 2px; color: hsl(40 80% var(--tc-l)); }
+.rec-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.rec { padding: 12px; border-radius: 12px; background: var(--raise); }
+.rec-txt { white-space: pre-wrap; overflow-wrap: anywhere; }
+.rec-meta { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px; margin-top: 6px; font-size: 12.5px; color: var(--fg-2); }
+.rec-act { display: flex; gap: 4px; }
+.edit-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 6px var(--gr) 0 var(--gl); padding: 6px 6px 6px 12px; border-radius: 12px; background: var(--in); box-shadow: var(--shadow); border-left: 3px solid var(--accent); font-size: 13.5px; }
+.edit-bar > svg { width: 17px; height: 17px; color: var(--accent); }
+.edit-bar strong { flex: 1; min-width: 0; color: var(--accent); }
+.edit-bar label { display: flex; align-items: center; gap: 6px; color: var(--fg-2); }
+.edit-bar input { accent-color: var(--accent-fill); width: 16px; height: 16px; }
+.mbtn.ed { color: var(--meta); }
+.meta .edited { font-style: italic; }
+.row { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.row.hidden-row .av { background: var(--raise); color: var(--fg-2); }
+.hid-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.hid-list li { display: flex; align-items: center; gap: 12px; }
+.hid-list li span.name { flex: 1; min-width: 0; font-weight: 600; }
+
 /* Sequential Thinking test */
 .tests { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 10px; }
 .tests li { display: grid; grid-template-columns: 14px 1fr; gap: 10px; padding: 12px; border-radius: 12px; background: var(--raise); }
@@ -481,6 +502,15 @@ textarea.big { min-height: 260px; font-size: 14px; }
       </div>
     </section>
 
+    <section class="pane" id="pane-recuerdos" hidden>
+      <div class="pane-pad">
+        <h2 class="sec-title">Recuerdos</h2>
+        <p class="sec-sub">Todos los agentes leen esto con la misma importancia que el chat. En cualquier chat escribe «guárdalo» para guardar el último mensaje, o «recuerda que…» para guardar lo que digas. Los agentes también guardan solos lo importante.</p>
+        <div class="file-actions"><button class="btn primary" type="button" id="btnAddRec"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Agregar recuerdo</button></div>
+        <ul class="rec-list" id="recList"></ul>
+      </div>
+    </section>
+
     <section class="pane" id="pane-gustos" hidden>
       <div class="pane-pad">
         <h2 class="sec-title">Mis gustos</h2>
@@ -500,6 +530,10 @@ textarea.big { min-height: 260px; font-size: 14px; }
           <div><strong>Internet pasivo</strong><p>Los agentes buscan en internet solo cuando les falta un dato. Usa tu conector Parallel Search.</p></div>
           <label class="switch"><span class="vh">Internet pasivo</span><input type="checkbox" id="g-internet"><i></i></label>
         </div>
+        <div class="switch-row" style="margin-top:-17px">
+          <div><strong>Recordar automáticamente</strong><p>Los agentes guardan en Recuerdos lo importante que digas, sin que lo pidas.</p></div>
+          <label class="switch"><span class="vh">Recordar automáticamente</span><input type="checkbox" id="g-autorec"><i></i></label>
+        </div>
         <details class="rules">
           <summary>Reglas que siguen todos los agentes</summary>
           <ul id="rulesList"></ul>
@@ -512,6 +546,7 @@ textarea.big { min-height: 260px; font-size: 14px; }
     <nav class="tabs" role="tablist" aria-label="Secciones">
       <button class="tab" type="button" role="tab" data-tab="chats" aria-selected="true"><span class="pill"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></svg></span>Chats</button>
       <button class="tab" type="button" role="tab" data-tab="files" aria-selected="false"><span class="pill"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></svg></span>Archivos</button>
+      <button class="tab" type="button" role="tab" data-tab="recuerdos" aria-selected="false"><span class="pill"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M7 3h10v18l-5-4-5 4z"/></svg></span>Recuerdos</button>
       <button class="tab" type="button" role="tab" data-tab="gustos" aria-selected="false"><span class="pill"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 20s-7.5-4.4-7.5-10.2A4.2 4.2 0 0 1 12 7.2a4.2 4.2 0 0 1 7.5 2.6C19.5 15.6 12 20 12 20Z"/></svg></span>Gustos</button>
     </nav>
   </aside>
@@ -533,6 +568,7 @@ textarea.big { min-height: 260px; font-size: 14px; }
       </header>
       <div class="wall"><div class="msgs" id="msgs" aria-live="polite"></div></div>
       <div class="suggest" id="suggest"></div>
+      <div class="edit-bar" id="editBar" hidden></div>
       <div class="tool-row" id="toolRow" hidden></div>
       <div class="attach-row" id="attachRow" hidden></div>
       <form class="composer" id="composer" autocomplete="off">
@@ -739,6 +775,8 @@ const I = {
   x: SVG('<path d="M6 6l12 12M18 6 6 18"/>', 'style="width:14px;height:14px"'),
   close: SVG('<path d="M6 6l12 12M18 6 6 18"/>'),
   web: SVG('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>'),
+  pencil: SVG('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>'),
+  pin: SVG('<path d="M7 3h10v18l-5-4-5 4z"/>'),
   trash: SVG('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
   doc: SVG('<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/>'),
   img: SVG('<rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="m20.5 16-5-5-8 8"/>'),
@@ -857,6 +895,7 @@ const DEFAULT_GUSTOS = {
   notas: '',
   memoria: true,
   internet: true,
+  autoRecordar: true,
 };
 const BUILTIN = [
   { id: 'guia-1', name: 'Guía BR 1 · Tipos de BR y cómo empezar', el: 'guide-1', scope: 'all' },
@@ -867,7 +906,9 @@ const BUILTIN = [
 
 /* ---------------- state ---------------- */
 const state = {
-  profile: { gustos: { ...DEFAULT_GUSTOS }, agents: [], chatCfg: {}, fileScopes: {}, unread: {} },
+  profile: { gustos: { ...DEFAULT_GUSTOS }, agents: [], chatCfg: {}, fileScopes: {}, unread: {}, hidden: {} },
+  recuerdos: [],
+  editing: null,
   chats: {},
   files: [],
   open: null,
@@ -877,7 +918,7 @@ const state = {
   drawer: false,
   gen: {},
   pending: [],
-  dirty: { profile: false, chats: new Set(), files: false },
+  dirty: { profile: false, chats: new Set(), files: false, recuerdos: false },
 };
 const rid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-5);
 const countChars = s => Array.from(String(s || '').replace(/\n/g, '')).length;
@@ -951,7 +992,7 @@ let lsTimer = null;
 function lsWrite() {
   clearTimeout(lsTimer);
   lsTimer = setTimeout(() => {
-    try { localStorage.setItem(LS_KEY, JSON.stringify({ profile: state.profile, chats: Object.fromEntries(Object.entries(state.chats).map(([k, v]) => [k, storeMsgs(v)])), files: state.files })); } catch {}
+    try { localStorage.setItem(LS_KEY, JSON.stringify({ profile: state.profile, chats: Object.fromEntries(Object.entries(state.chats).map(([k, v]) => [k, storeMsgs(v)])), files: state.files, recuerdos: state.recuerdos })); } catch {}
   }, 400);
 }
 function storeMsgs(list) {
@@ -986,6 +1027,21 @@ const profileRef = () => db.doc(base + '/profile');
 function saveProfile() { state.dirty.profile = true; dbWrite('profile', () => ({ ref: profileRef(), data: { ...state.profile, v: 1 } })); }
 function saveChat(id) { state.dirty.chats.add(id); dbWrite('chat:' + id, () => ({ ref: db.doc(base + '/chat-' + id), data: { msgs: storeMsgs(chatOf(id)), ts: Date.now() } })); }
 function saveFile(f) { state.dirty.files = true; dbWrite('file:' + f.id, () => ({ ref: profileRef().collection('files').doc(f.id), data: { name: f.name, text: f.text, scope: f.scope, ts: f.ts } })); }
+function saveRecuerdos() { state.dirty.recuerdos = true; dbWrite('recuerdos', () => ({ ref: db.doc(base + '/recuerdos'), data: { items: state.recuerdos } })); }
+const normRec = t => String(t).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+function addRecuerdo(text, agentId, how) {
+  const t = String(text || '').trim().slice(0, 1500);
+  if (!t || state.recuerdos.some(r => normRec(r.text) === normRec(t))) return null;
+  const r = { id: 'r-' + rid(), text: t, ts: Date.now(), from: agentId && agentId !== '__test__' ? agentId : null, how };
+  state.recuerdos.unshift(r);
+  if (state.recuerdos.length > 150) state.recuerdos.length = 150;
+  saveRecuerdos();
+  if (state.tab === 'recuerdos') renderRecuerdos();
+  return r;
+}
+function delRecuerdo(id) { state.recuerdos = state.recuerdos.filter(x => x.id !== id); saveRecuerdos(); renderRecuerdos(); toast('Recuerdo borrado'); }
+const sysNote = text => ({ id: rid(), role: 'system', text, ts: Date.now() });
+const shortTxt = t => { const p = plain(t); return p.length > 90 ? p.slice(0, 90) + '…' : p; };
 function deleteFile(id) { dbWrite('file:' + id, () => ({ ref: profileRef().collection('files').doc(id), del: true })); }
 
 function mergeProfile(p) {
@@ -994,14 +1050,14 @@ function mergeProfile(p) {
   state.profile = {
     gustos: { ...DEFAULT_GUSTOS, ...(p.gustos || {}) },
     agents: Array.isArray(p.agents) ? p.agents : [],
-    chatCfg: p.chatCfg || {}, fileScopes: p.fileScopes || {}, unread: p.unread || {},
+    chatCfg: p.chatCfg || {}, fileScopes: p.fileScopes || {}, unread: p.unread || {}, hidden: p.hidden || {},
   };
 }
 const timeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej({ code: 'timeout' }), ms))]);
 
 async function boot() {
   const cached = lsRead();
-  if (cached) { mergeProfile(cached.profile); state.chats = cached.chats || {}; state.files = Array.isArray(cached.files) ? cached.files : []; }
+  if (cached) { mergeProfile(cached.profile); state.chats = cached.chats || {}; state.files = Array.isArray(cached.files) ? cached.files : []; state.recuerdos = Array.isArray(cached.recuerdos) ? cached.recuerdos : []; }
   renderAll();
   if (isWide()) openChat('simple');
   const [d, u] = await Promise.all([use('db'), use('user')]);
@@ -1024,6 +1080,7 @@ async function boot() {
       }
       if (!state.dirty.files) state.files = fsnap.docs.map(s => ({ id: s.id, ...thaw(s.data()) }));
     }
+    if (docs.recuerdos && !state.dirty.recuerdos) state.recuerdos = Array.isArray(docs.recuerdos.items) ? docs.recuerdos.items : [];
     setStoreNote(true);
     renderAll();
   } catch {
@@ -1076,6 +1133,7 @@ function lastMsg(id) { const l = chatOf(id); return l[l.length - 1]; }
 function renderList() {
   const q = state.q.trim().toLowerCase();
   const rows = agents().filter(a => {
+    if (state.profile.hidden?.[a.id]) return false;
     if (q && !(a.name + ' ' + a.blurb).toLowerCase().includes(q)) return false;
     if (state.filter === 'combate' && a.group !== 'combate') return false;
     if (state.filter === 'analisis' && a.group !== 'analisis') return false;
@@ -1099,7 +1157,10 @@ function renderList() {
   const newRow = state.filter === 'all' && !q ? `<li><button class="row new" type="button" data-new-agent>
       <span class="av" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
       <span class="row-name">Nuevo agente</span><span></span><div class="row-prev"><span>Créalo con tu nombre, color e instrucciones</span></div></button></li>` : '';
-  $('#chatList').innerHTML = newRow + (html || `<li class="pane-pad empty-note">Ningún agente coincide.</li>`);
+  const nHidden = agents().filter(a => state.profile.hidden?.[a.id]).length;
+  const hiddenRow = nHidden && state.filter === 'all' && !q ? `<li><button class="row new hidden-row" type="button" data-show-hidden>
+      <span class="av" aria-hidden="true">${I.pin}</span><span class="row-name">Agentes ocultos (${nHidden})</span><span></span><div class="row-prev"><span>Toca para volver a mostrarlos</span></div></button></li>` : '';
+  $('#chatList').innerHTML = newRow + (html || `<li class="pane-pad empty-note">Ningún agente coincide.</li>`) + hiddenRow;
 }
 
 /* ---------------- render: chat ---------------- */
@@ -1112,6 +1173,7 @@ function openChat(id) {
   $('#chatView').style.setProperty('--pattern', patternUrl(a.glyph));
   if (state.profile.unread[id]) { state.profile.unread[id] = 0; saveProfile(); }
   state.pending = [];
+  state.editing = null; renderEditBar();
   setMenu(false);
   renderAttach();
   renderChat(true);
@@ -1153,11 +1215,12 @@ function bubble(m, first, a) {
       ? `<img src="${esc(f.local || '/_blob/' + f.asset)}" alt="${esc(f.name)}">`
       : `<span class="att-file">${I.file}<span>${esc(f.name)}${f.kind === 'text' && f.text ? ` · ${nf.format(countChars(f.text))} car.` : ''}</span></span>`).join('')}</div>` : '';
     return `<div class="b out ${first ? 'first' : ''}" data-mid="${m.id}">${att}${m.text ? `<div class="txt">${fmt(m.text)}</div>` : ''}
-      <div class="meta"><button class="mbtn del" type="button" data-del="${m.id}" data-confirm="delmsg" aria-label="Borrar mensaje">${I.trash}</button><span>${hhmm(m.ts)}</span>${I.ticks.replace('class="ticks"', `class="ticks${m.read ? ' read' : ''}"`)}</div></div>`;
+      <div class="meta">${m.text ? `<button class="mbtn ed" type="button" data-edit="${m.id}" aria-label="Editar mensaje">${I.pencil}</button>` : ''}<button class="mbtn del" type="button" data-del="${m.id}" data-confirm="delmsg" aria-label="Borrar mensaje">${I.trash}</button>${m.edited ? '<span class="edited">editado</span>' : ''}<span>${hhmm(m.ts)}</span>${I.ticks.replace('class="ticks"', `class="ticks${m.read ? ' read' : ''}"`)}</div></div>`;
   }
   return `<div class="b in ${first ? 'first' : ''}" data-mid="${m.id}">${agentInner(m, c)}</div>`;
 }
-const activityHTML = act => `<div class="activity" style="--th:${TOOLS[act.kind].hue}">${I[TOOLS[act.kind].icon]}<span>${esc(act.label)}</span></div>`;
+const ACT = k => TOOLS[k] || ({ mem: { hue: 44, icon: 'pin' } })[k] || TOOLS.seq;
+const activityHTML = act => `<div class="activity" style="--th:${ACT(act.kind).hue}">${I[ACT(act.kind).icon]}<span>${esc(act.label)}</span></div>`;
 function traceHTML(m) {
   const st = m.steps || [], src = m.sources || [], wb = m.web || [];
   if (!st.length && !src.length && !wb.length) return '';
@@ -1210,6 +1273,7 @@ function renderChat(jump) {
   for (const m of list) {
     const dk = dayKey(m.ts);
     if (dk !== lastDay) { html += `<div class="day">${dayLabel(m.ts)}</div>`; lastDay = dk; prevRole = ''; }
+    if (m.role === 'system') { html += `<div class="sys" data-mid="${m.id}">${I.pin}<span>${esc(m.text)}</span></div>`; prevRole = ''; continue; }
     html += bubble(m, m.role !== prevRole, a);
     prevRole = m.role;
   }
@@ -1273,7 +1337,7 @@ function renderDrawer() {
       ${chatOf(a.id).some(m => m.error && !m.text && !m.pending) ? `<button class="btn danger" type="button" data-confirm="clearerrors">Borrar errores (${chatOf(a.id).filter(m => m.error && !m.text && !m.pending).length})</button>` : ''}
       <button class="btn danger" type="button" data-confirm="clear">Vaciar chat</button>
       <small style="flex-basis:100%">Lo que borras sale también de la memoria compartida de los agentes.</small>
-      ${a.custom ? `<button class="btn danger" type="button" data-confirm="delagent">Borrar agente</button>` : ''}
+      ${a.custom ? `<button class="btn danger" type="button" data-confirm="delagent">Borrar agente</button>` : `<button class="btn danger" type="button" data-confirm="delchat">Eliminar chat</button>`}
     </div>`;
   $('#drawer').hidden = false;
 }
@@ -1301,6 +1365,11 @@ function buildSystem(a, kinds = [], light = false, lvOverride = null) {
       : `\nMODO REDACTOR\nEscribes las acciones del personaje del usuario${c.mine ? ` (${c.mine})` : ''} tal como te las ordene. Si pega el texto del rival${c.rival ? ` (${c.rival})` : ''}, sácale las aperturas de sus propias palabras.`);
   }
   L.push(`\nQUIÉN ES EL USUARIO Y SUS GUSTOS\n- Apodo: ${g.apodo || 'sin apodo'}\n- Personajes que usa: ${g.personajes || 'no lo dijo'}\n- Universos que le gustan: ${g.universos || 'no lo dijo'}\n- Su estilo: ${g.estilo || 'no lo dijo'}\n- Lo que no le gusta: ${g.odio || 'no lo dijo'}${g.notas ? `\n- Notas: ${g.notas}` : ''}`);
+  if (state.recuerdos.length) {
+    let budget = 8000; const lines = [];
+    for (const r of state.recuerdos) { const l = '- ' + r.text; if (budget - l.length < 0) break; budget -= l.length; lines.push(l); }
+    L.push(`\nRECUERDOS GUARDADOS (el usuario pidió recordarlos; tienen la misma importancia que el chat)\n${lines.join('\n')}`);
+  }
   L.push(`\nPREFERENCIAS DEL USUARIO PARA ESCRIBIR (si su mensaje pide otra cosa, sigue su mensaje)\n${RULES.map(r => '- ' + r).join('\n')}`);
   if (a.voice) L.push(`\nVOZ PARA ACCIONES Y DEBUNKEOS\n${VOICE}`);
   const combat = [];
@@ -1368,7 +1437,7 @@ const ERR = {
   refused: 'El agente no pudo responder a esto. Toca Reintentar o cambia un poco el mensaje.',
 };
 const RETRYABLE = new Set(['rate_limited', 'session_expired', 'upstream_error', 'empty_completion', 'timeout']);
-async function generate(agentId, images) {
+async function generate(agentId, images, opts = {}) {
   const a = agentById(agentId);
   const list = chatOf(agentId);
   const reply = { id: rid(), role: 'agent', text: '', ts: Date.now(), pending: true };
@@ -1398,9 +1467,15 @@ async function generate(agentId, images) {
     let notes = null;
     let useWeb = state.profile.gustos.internet !== false;
     if (useWeb) { await mcpReady; const st = toolState('web'); useWeb = st === 'ok' || st === 'checking'; }
-    const helperKinds = useWeb ? [...kinds, 'web'] : kinds;
+    const memAuto = state.profile.gustos.autoRecordar !== false && !opts.skipMem;
+    const helperKinds = [...kinds, ...(useWeb ? ['web'] : []), ...(memAuto ? ['mem'] : [])];
     if (helperKinds.length) {
       notes = await prethink(sample, agentId, helperKinds, reply, ctl.signal, markRead);
+      if (reply.saved?.length) {
+        const at = list.indexOf(reply);
+        reply.saved.slice().reverse().forEach(t => list.splice(at, 0, sysNote(`Guardado automáticamente en Recuerdos: «${shortTxt(t)}»`)));
+        if (state.open === agentId) renderChat();
+      }
       if (notes) {
         reply.activity = { kind: kinds.includes('seq') ? 'seq' : kinds.includes('wiki') ? 'wiki' : 'web', label: `${a.name} escribe con lo encontrado…` };
         streamUpdate(agentId, reply);
@@ -1442,19 +1517,26 @@ async function generate(agentId, images) {
 async function prethink(sample, agentId, kinds, reply, signal, markRead) {
   const last = [...chatOf(agentId)].reverse().find(m => m.role === 'user');
   const msg = (last ? msgContent(last) : '').slice(0, 6000) || '(mensaje vacío)';
-  const seq = kinds.includes('seq'), wiki = kinds.includes('wiki'), web = kinds.includes('web');
+  const seq = kinds.includes('seq'), wiki = kinds.includes('wiki'), web = kinds.includes('web'), mem = kinds.includes('mem');
   const lv = seqLevel(agentId), L = SEQ_LEVELS[lv];
   const tools = buildTools(kinds, reply, agentId, markRead);
   const ask = [];
   if (seq) ask.push(`Usa la herramienta ${L.tool} al menos ${L.min} veces (thoughtNumber 1, 2, 3…, nextThoughtNeeded false en el último)${lv === 'high' || lv === 'max' ? ', con al menos un camino alternativo (branchFromThought y branchId)' : ''}${lv === 'max' ? ' y revisando al menos un paso anterior (isRevision y revisesThought)' : ''} para pensar cómo responder este mensaje de un jugador de battle rol.`);
   if (wiki) ask.push(`${seq ? 'Si' : 'Para responder este mensaje de un jugador de battle rol, si'} algún poder o habilidad necesita respaldo, búscalo con search_powerlisting y léelo con get_page (máximo 2 búsquedas).`);
   if (web) ask.push(`${seq || wiki ? 'Además, si' : 'Para responder este mensaje de un jugador de battle rol: si'} hace falta un dato que no sabes con seguridad (un personaje, una habilidad, lore, una serie o juego, algo reciente), búscalo en internet con web_search; usa web_fetch solo si los extractos no alcanzan (máximo 2 búsquedas y 1 lectura). Si no hace falta, no busques.`);
-  reply.activity = { kind: seq ? 'seq' : wiki ? 'wiki' : 'web', label: seq ? `Sequential Thinking ${L.short} · empezando a pensar…` : wiki ? 'Superpower Wiki · revisando…' : 'Internet · viendo si hace falta buscar…' };
+  if (mem) {
+    const known = state.recuerdos.slice(0, 12).map(r => '- ' + plain(r.text).slice(0, 120)).join('\n');
+    ask.push(`Si el mensaje trae algo importante que conviene recordar en futuras conversaciones (datos o fichas de sus personajes, reglas o preferencias que pide, cómo va un combate), guárdalo con guardar_recuerdo en una frase clara. No guardes saludos ni cosas sin importancia.${known ? `\nYa guardado (no lo repitas):\n${known}\n` : ''}`);
+  }
+  reply.activity = seq ? { kind: 'seq', label: `Sequential Thinking ${L.short} · empezando a pensar…` } : wiki ? { kind: 'wiki', label: 'Superpower Wiki · revisando…' } : web ? { kind: 'web', label: 'Internet · viendo si hace falta buscar…' } : { kind: 'mem', label: 'Recuerdos · revisando si hay algo importante…' };
   streamUpdate(agentId, reply);
-  const onlyWeb = web && !seq && !wiki;
-  const res = await sample(`App Battle roleplay, paso previo antes de responder. ${ask.join(' ')} Mensaje: "${msg}". Después escribe en 2 a 6 líneas la conclusión${wiki ? ', lo que encontraste en la wiki' : ''}${web ? ' y lo que encontraste en internet con sus fuentes' : ''}.${onlyWeb ? ' Si no hizo falta buscar, responde solo: NO.' : ''}`, { cache: false, signal, tools, modelTier: 'quick' });
+  const thinking = seq || wiki;
+  const tail = thinking || web
+    ? `Después escribe en 2 a 6 líneas la conclusión${wiki ? ', lo que encontraste en la wiki' : ''}${web ? ' y lo que encontraste en internet con sus fuentes' : ''}.${!thinking ? ' Si no hizo falta buscar, responde solo: NO.' : ''}`
+    : 'Después responde solo: listo.';
+  const res = await sample(`App Battle roleplay, paso previo antes de responder. ${ask.join(' ')} Mensaje: "${msg}". ${tail}`, { cache: false, signal, tools, modelTier: 'quick' });
   const usedWeb = (reply.web || []).length > 0;
-  if (onlyWeb && !usedWeb) { reply.activity = null; return null; }
+  if (!thinking && !usedWeb) { reply.activity = null; return null; }
   const parts = [];
   if (reply.steps.length) parts.push(`Pasos pensados con Sequential Thinking (${L.label}):\n` + reply.steps.map((t, i) => `${i + 1}. ${t}`).join('\n'));
   if (reply.sources.length) parts.push('Páginas leídas en la Superpower Wiki: ' + reply.sources.join(', '));
@@ -1536,6 +1618,22 @@ function buildTools(kinds, reply, agentId, onToolStart, lvOverride = null) {
       },
     });
   }
+  if (kinds.includes('mem')) {
+    reply.saved = [];
+    T.push({
+      name: 'guardar_recuerdo',
+      description: 'Guarda en los Recuerdos del usuario un dato importante que todos los agentes deben recordar siempre: datos o fichas de sus personajes, reglas o preferencias que pide, cómo va un combate. No guardes saludos ni cosas pasajeras. Una frase clara por recuerdo.',
+      inputSchema: { type: 'object', properties: { texto: { type: 'string', description: 'El dato a recordar, en una frase' } }, required: ['texto'] },
+      execute: async input => {
+        onToolStart();
+        const r = addRecuerdo(input.texto, agentId, 'auto');
+        if (!r) return 'Ya estaba guardado o venía vacío.';
+        reply.saved.push(r.text);
+        setActivity(agentId, reply, 'mem', 'Recuerdos · guardando algo importante');
+        return 'Guardado.';
+      },
+    });
+  }
   if (kinds.includes('web')) {
     reply.web = [];
     T.push({
@@ -1606,9 +1704,19 @@ function buildTools(kinds, reply, agentId, onToolStart, lvOverride = null) {
   return T;
 }
 
+const SAVE_RE = /(^|[^\p{L}])(gu[aá]rd(?:a|alo|ala|amelo|ame|en|ar)|recu[eé]rd(?:a|alo|ala|ame|en)|acu[eé]rdate(?: de)?|an[oó]ta(?:lo|la)?|no (?:te )?olvides(?: de)?)(?=$|[^\p{L}])/iu;
+const SAVE_FILLER = /(^|\s)(porfa(?:vor)?|por favor|pls|plis|en (?:la )?memoria|en (?:los )?recuerdos|ah[ií]|bro|we|wn)(?=$|[\s,.!?])/giu;
+function detectSave(text) {
+  const m = text.match(SAVE_RE);
+  if (!m || (m.index > 25 && text.length > 60)) return null;
+  let rest = (text.slice(0, m.index) + ' ' + text.slice(m.index + m[0].length)).replace(SAVE_FILLER, ' ');
+  rest = rest.replace(/^[\s,.:;!¡¿?\-]+/, '').replace(/^(esto|eso|lo siguiente|que)(?=$|[\s,.:;!])/i, '').replace(/^[\s,.:;!¡¿?\-]+/, '').trim();
+  return { rest };
+}
 async function send() {
   const id = state.open; if (!id) return;
   if (state.gen[id]) { state.gen[id].ctl.abort(); return; }
+  if (state.editing) return saveEdit();
   const ta = $('#input');
   const text = ta.value.trim();
   if (!text && !state.pending.length) return;
@@ -1619,6 +1727,14 @@ async function send() {
   chatOf(id).push(msg);
   ta.value = ''; autosize();
   state.pending = []; renderAttach();
+  const save = text ? detectSave(text) : null;
+  if (save) {
+    let what = save.rest.length >= 6 ? save.rest : null;
+    if (!what) { const prev = chatOf(id).slice(0, -1).reverse().find(m => (m.role === 'agent' || m.role === 'user') && m.text && !m.error); what = prev?.text || null; }
+    if (what) { const r = addRecuerdo(what, id, 'manual'); chatOf(id).push(sysNote(r ? `Guardado en Recuerdos: «${shortTxt(what)}»` : 'Eso ya estaba en Recuerdos.')); }
+    else chatOf(id).push(sysNote('No encontré qué guardar. Escribe «recuerda que…» con lo que quieras guardar.'));
+    if (save.rest.length < 6 && !files.length) { msg.read = true; saveChat(id); renderChat(); renderList(); return; }
+  }
   saveChat(id);
   if (assets && images.length) {
     files.forEach((f, i) => {
@@ -1626,7 +1742,37 @@ async function send() {
       assets.upload(f.blob).then(r => { const mf = msg.files[i]; mf.asset = r.id; saveChat(id); }).catch(() => {});
     });
   }
-  generate(id, images);
+  generate(id, images, { skipMem: !!save });
+}
+/* editing my messages */
+function startEdit(mid) {
+  const id = state.open; if (!id) return;
+  if (state.gen[id]) { toast('Espera que termine la respuesta para editar.'); return; }
+  const m = chatOf(id).find(x => x.id === mid); if (!m) return;
+  state.editing = { agentId: id, mid };
+  const ta = $('#input'); ta.value = m.text || ''; autosize(); ta.focus();
+  renderEditBar();
+}
+function renderEditBar() {
+  const bar = $('#editBar'); const ed = state.editing;
+  if (!ed || ed.agentId !== state.open) { bar.hidden = true; bar.innerHTML = ''; return; }
+  const list = chatOf(ed.agentId); const i = list.findIndex(x => x.id === ed.mid);
+  const lastUser = i >= 0 && !list.slice(i + 1).some(x => x.role === 'user');
+  const hasReply = i >= 0 && list.slice(i + 1).some(x => x.role === 'agent');
+  bar.hidden = false;
+  bar.innerHTML = `${I.pencil}<strong>Editando tu mensaje</strong>${lastUser && hasReply ? '<label><input type="checkbox" id="editRegen" checked> Nueva respuesta</label>' : ''}<button class="icon-btn" type="button" data-edit-cancel aria-label="Cancelar edición">${I.close}</button>`;
+}
+function cancelEdit() { state.editing = null; const ta = $('#input'); ta.value = ''; autosize(); renderEditBar(); }
+function saveEdit() {
+  const ed = state.editing; const list = chatOf(ed.agentId);
+  const m = list.find(x => x.id === ed.mid); const text = $('#input').value.trim();
+  const regen = !!$('#editRegen')?.checked;
+  if (!m || (!text && !m.files?.length)) return cancelEdit();
+  if (text !== m.text) { m.text = text; m.edited = true; }
+  state.editing = null; $('#input').value = ''; autosize(); renderEditBar();
+  if (regen) { list.splice(list.indexOf(m) + 1); saveChat(ed.agentId); renderChat(); generate(ed.agentId); }
+  else { saveChat(ed.agentId); renderChat(); renderList(); }
+  toast('Mensaje editado');
 }
 
 /* ---------------- attachments ---------------- */
@@ -1958,6 +2104,34 @@ function agentEditor() {
   });
 }
 
+/* ---------------- recuerdos ---------------- */
+function renderRecuerdos() {
+  const list = state.recuerdos;
+  $('#recList').innerHTML = list.length ? list.map(r => `<li class="rec"><div class="rec-txt">${esc(r.text)}</div>
+    <div class="rec-meta"><span>${r.how === 'auto' ? 'Lo guardó un agente' : 'Guardado por ti'}${r.from && agentById(r.from) ? ' · en ' + esc(agentById(r.from).name) : ''} · ${listDate(r.ts)}</span>
+    <span class="rec-act"><button class="mbtn" type="button" data-rec-edit="${r.id}">${I.pencil}Editar</button><button class="mbtn del" type="button" data-rec-del="${r.id}" data-confirm="delrec" aria-label="Borrar recuerdo">${I.trash}</button></span></div></li>`).join('')
+    : `<li class="empty-note">Todavía no hay recuerdos. En un chat escribe «guárdalo» para guardar el último mensaje, o «recuerda que…» con lo que quieras guardar.</li>`;
+}
+function recEditor(recId) {
+  const r = recId ? state.recuerdos.find(x => x.id === recId) : null;
+  openSheet(`<div class="sheet-head"><button class="icon-btn" type="button" data-close aria-label="Cerrar sin guardar">${I.close}</button><h3>${r ? 'Editar recuerdo' : 'Nuevo recuerdo'}</h3><button class="btn primary keep-focus" type="button" id="rec-save">Guardar</button></div>
+    <div class="sheet-body"><label class="field"><span>Qué deben recordar los agentes</span><textarea class="inp" id="rec-text" rows="7" placeholder="Ej: en el combate contra dio ya usé el ojo omnipresente">${esc(r?.text || '')}</textarea></label></div>
+    ${r ? `<div class="sheet-foot"><button class="btn danger grow" type="button" data-confirm="delrec-sheet">Borrar recuerdo</button></div>` : ''}`, sheet => {
+    $('#rec-text', sheet).focus();
+    $('#rec-save', sheet).addEventListener('click', () => {
+      const t = $('#rec-text', sheet).value.trim();
+      if (!t) { toast('Escribe qué guardar.'); return; }
+      if (r) { r.text = t.slice(0, 1500); r.ts = Date.now(); saveRecuerdos(); }
+      else if (!addRecuerdo(t, null, 'manual')) { toast('Eso ya estaba en Recuerdos.'); return; }
+      closeSheet(); renderRecuerdos(); toast('Recuerdo guardado');
+    });
+    sheet.addEventListener('confirmed', e => { if (e.detail === 'delrec-sheet') { closeSheet(); delRecuerdo(r.id); } });
+  });
+}
+$('#btnAddRec').addEventListener('click', () => recEditor(null));
+$('#recList').addEventListener('click', e => { const b = e.target.closest('[data-rec-edit]'); if (b) recEditor(b.dataset.recEdit); });
+$('#recList').addEventListener('confirmed', e => { if (e.detail !== 'delrec') return; const b = e.target.closest('[data-rec-del]'); if (b) delRecuerdo(b.dataset.recDel); });
+
 /* ---------------- gustos ---------------- */
 const GF = ['apodo', 'personajes', 'universos', 'estilo', 'odio', 'notas'];
 function renderGustos() {
@@ -1965,10 +2139,12 @@ function renderGustos() {
   for (const k of GF) { const el = $('#g-' + k); if (document.activeElement !== el) el.value = g[k] || ''; }
   $('#g-memoria').checked = !!g.memoria;
   $('#g-internet').checked = g.internet !== false;
+  $('#g-autorec').checked = g.autoRecordar !== false;
 }
 $('#rulesList').innerHTML = RULES.map(r => `<li>${esc(r)}</li>`).join('');
 for (const k of GF) $('#g-' + k).addEventListener('input', e => { state.profile.gustos[k] = e.target.value; saveProfile(); });
 $('#g-memoria').addEventListener('change', e => { state.profile.gustos.memoria = e.target.checked; saveProfile(); });
+$('#g-autorec').addEventListener('change', e => { state.profile.gustos.autoRecordar = e.target.checked; saveProfile(); toast(e.target.checked ? 'Recordar automáticamente activado' : 'Recordar automáticamente apagado'); });
 $('#g-internet').addEventListener('change', async e => {
   state.profile.gustos.internet = e.target.checked; saveProfile();
   if (!e.target.checked) return toast('Internet pasivo apagado');
@@ -2012,11 +2188,13 @@ function setTab(t) {
   $('#pane-chats').hidden = t !== 'chats';
   $('#pane-files').hidden = t !== 'files';
   $('#pane-gustos').hidden = t !== 'gustos';
+  $('#pane-recuerdos').hidden = t !== 'recuerdos';
   $('#fabNew').hidden = t !== 'chats';
   if (t === 'files') renderFiles();
+  if (t === 'recuerdos') renderRecuerdos();
   if (t === 'gustos') renderGustos();
 }
-function renderAll() { renderList(); renderChat(); renderGustos(); if (state.tab === 'files') renderFiles(); }
+function renderAll() { renderList(); renderChat(); renderGustos(); if (state.tab === 'files') renderFiles(); if (state.tab === 'recuerdos') renderRecuerdos(); }
 
 $$('.tab').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab)));
 $('#filters').addEventListener('click', e => {
@@ -2026,7 +2204,19 @@ $('#filters').addEventListener('click', e => {
   renderList();
 });
 $('#q').addEventListener('input', e => { state.q = e.target.value; renderList(); });
+let lp = { timer: null, fired: false, x: 0, y: 0 };
+$('#chatList').addEventListener('pointerdown', e => {
+  lp.fired = false; clearTimeout(lp.timer);
+  const b = e.target.closest('[data-open]'); if (!b) return;
+  lp.x = e.clientX; lp.y = e.clientY;
+  lp.timer = setTimeout(() => { lp.fired = true; if (navigator.vibrate) try { navigator.vibrate(20); } catch {} openChatActions(b.dataset.open); }, 550);
+});
+$('#chatList').addEventListener('pointermove', e => { if (Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > 10) clearTimeout(lp.timer); });
+['pointerup', 'pointercancel', 'pointerleave'].forEach(t => $('#chatList').addEventListener(t, () => clearTimeout(lp.timer)));
+$('#chatList').addEventListener('contextmenu', e => { const b = e.target.closest('[data-open]'); if (!b) return; e.preventDefault(); clearTimeout(lp.timer); lp.fired = true; openChatActions(b.dataset.open); });
 $('#chatList').addEventListener('click', e => {
+  if (lp.fired) { lp.fired = false; e.preventDefault(); return; }
+  if (e.target.closest('[data-show-hidden]')) return openHidden();
   if (e.target.closest('[data-new-agent]')) return agentEditor();
   const b = e.target.closest('[data-open]'); if (b) openChat(b.dataset.open);
 });
@@ -2070,13 +2260,54 @@ $('#drawerBody').addEventListener('confirmed', e => {
     saveChat(id); renderChat(); renderList(); renderDrawer();
     toast(`${before - chatOf(id).length} errores borrados`);
   }
-  if (e.detail === 'delagent') {
-    state.profile.agents = state.profile.agents.filter(a => a.id !== id);
-    delete state.profile.chatCfg[id]; delete state.chats[id];
-    saveProfile(); if (db) dbWrite('chat:' + id, () => ({ ref: db.doc(base + '/chat-' + id), del: true }));
-    closeChat(); toast('Agente borrado');
-  }
+  if (e.detail === 'delagent' || e.detail === 'delchat') { removeChat(id); toast('Chat eliminado'); }
 });
+function removeChat(id) {
+  const a = agentById(id); if (!a) return;
+  if (state.gen[id]) state.gen[id].ctl.abort();
+  if (a.custom) {
+    state.profile.agents = state.profile.agents.filter(x => x.id !== id);
+    delete state.profile.chatCfg[id]; delete state.chats[id];
+    if (db) dbWrite('chat:' + id, () => ({ ref: db.doc(base + '/chat-' + id), del: true })); else lsWrite();
+  } else {
+    state.chats[id] = []; saveChat(id);
+    state.profile.hidden = { ...(state.profile.hidden || {}), [id]: true };
+  }
+  delete state.profile.unread[id];
+  saveProfile();
+  if (state.open === id) closeChat(); else renderList();
+}
+function openChatActions(id) {
+  const a = agentById(id); if (!a) return;
+  openSheet(`<div class="sheet-head"><button class="icon-btn" type="button" data-close aria-label="Cerrar">${I.close}</button><h3>${esc(a.name)}</h3></div>
+    <div class="sheet-body">
+      <p class="sec-sub">${a.custom ? 'Eliminar borra este agente y todos sus mensajes.' : 'Eliminar quita este chat de la lista y borra sus mensajes. Puedes volver a mostrarlo desde «Agentes ocultos», al final de la lista.'}</p>
+      <div class="pickrow">
+        <button class="btn" type="button" data-act-open>Abrir chat</button>
+        <button class="btn danger" type="button" data-confirm="act-clear">Vaciar chat</button>
+        <button class="btn danger" type="button" data-confirm="act-remove">Eliminar chat</button>
+      </div>
+    </div>`, sheet => {
+    sheet.addEventListener('click', e => { if (e.target.closest('[data-act-open]')) { closeSheet(); setTab('chats'); openChat(id); } });
+    sheet.addEventListener('confirmed', e => {
+      if (e.detail === 'act-clear') { state.chats[id] = []; saveChat(id); closeSheet(); renderList(); if (state.open === id) renderChat(); toast('Chat vaciado'); }
+      if (e.detail === 'act-remove') { closeSheet(); removeChat(id); toast('Chat eliminado'); }
+    });
+  });
+}
+function openHidden() {
+  const list = agents().filter(a => state.profile.hidden?.[a.id]);
+  openSheet(`<div class="sheet-head"><button class="icon-btn" type="button" data-close aria-label="Cerrar">${I.close}</button><h3>Agentes ocultos</h3></div>
+    <div class="sheet-body"><ul class="hid-list">${list.map(a => `<li>${avatar({ ...a, hue: hueOf(a) }, 'sm')}<span class="name">${esc(a.name)}</span><button class="btn" type="button" data-unhide="${a.id}">Mostrar</button></li>`).join('')}</ul></div>`, sheet => {
+    sheet.addEventListener('click', e => {
+      const b = e.target.closest('[data-unhide]'); if (!b) return;
+      const h = { ...(state.profile.hidden || {}) }; delete h[b.dataset.unhide];
+      state.profile.hidden = h; saveProfile(); renderList();
+      b.closest('li').remove(); toast('Chat visible otra vez');
+      if (!Object.keys(h).length) closeSheet();
+    });
+  });
+}
 
 function deleteMsg(agentId, mid) {
   if (state.gen[agentId]?.id === mid) return;
@@ -2092,6 +2323,8 @@ $('#msgs').addEventListener('confirmed', e => {
 });
 $('#msgs').addEventListener('click', async e => {
   const id = state.open;
+  const edb = e.target.closest('[data-edit]');
+  if (edb) { startEdit(edb.dataset.edit); return; }
   const del = e.target.closest('[data-del]');
   if (del && !del.hasAttribute('data-confirm')) { deleteMsg(id, del.dataset.del); return; }
   const cp = e.target.closest('[data-copy]');
@@ -2129,6 +2362,7 @@ $('#attachRow').addEventListener('click', e => {
   state.pending = state.pending.filter(p => p.id !== b.dataset.unpend); renderAttach();
 });
 $('#composer').addEventListener('submit', e => { e.preventDefault(); send(); });
+$('#editBar').addEventListener('click', e => { if (e.target.closest('[data-edit-cancel]')) cancelEdit(); });
 document.addEventListener('mousedown', e => {
   if (e.target.closest('#btnSend, #btnClip, .tchip, .sugg, .keep-focus, #attachMenu .menu-item')) e.preventDefault();
 });
@@ -2196,7 +2430,8 @@ $('#fileList').addEventListener('click', e => { const b = e.target.closest('[dat
 
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
-  if (!$('#attachMenu').hidden) { setMenu(false); $('#btnClip').focus(); }
+  if (state.editing) cancelEdit();
+  else if (!$('#attachMenu').hidden) { setMenu(false); $('#btnClip').focus(); }
   else if (!$('#sheetWrap').hidden) closeSheet();
   else if (state.drawer) { state.drawer = false; $('#drawer').hidden = true; }
 });
