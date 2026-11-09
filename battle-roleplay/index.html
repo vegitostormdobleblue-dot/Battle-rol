@@ -378,6 +378,9 @@ textarea.inp { resize: vertical; min-height: 84px; line-height: 1.45; }
 @keyframes shimmer { 50% { opacity: .5; } }
 .trace { margin-top: 6px; padding-top: 5px; border-top: 1px solid color-mix(in srgb, currentColor 12%, transparent); font-size: 13px; }
 .trace summary { cursor: pointer; color: var(--meta); font-weight: 600; }
+.trace { margin: 0 0 6px; padding: 0 0 5px; border-top: 0; border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent); }
+.trace.live summary { color: hsl(196 70% var(--tc-l)); }
+.trace.live ol li:last-child { color: var(--in-fg); }
 .trace ol, .trace ul { margin: 6px 0 2px; padding-left: 20px; display: grid; gap: 5px; color: var(--meta); }
 .trace a { color: var(--accent); }
 
@@ -1149,21 +1152,21 @@ const activityHTML = act => `<div class="activity" style="--th:${TOOLS[act.kind]
 function traceHTML(m) {
   const st = m.steps || [], src = m.sources || [];
   if (!st.length && !src.length) return '';
-  const sum = [st.length ? `pensó en ${st.length} paso${st.length > 1 ? 's' : ''}` : '', src.length ? `consultó ${src.length} página${src.length > 1 ? 's' : ''} de la wiki` : ''].filter(Boolean).join(' · ');
-  return `<details class="trace"><summary>${sum.charAt(0).toUpperCase() + sum.slice(1)}</summary>
+  const live = !!m.pending;
+  const sum = [st.length ? `${live ? 'pensando · ' : 'pensó en '}${st.length} paso${st.length > 1 ? 's' : ''}` : '', src.length ? `consultó ${src.length} página${src.length > 1 ? 's' : ''} de la wiki` : ''].filter(Boolean).join(' · ');
+  return `<details class="trace${live ? ' live' : ''}" ${live ? 'open' : ''}><summary>${sum.charAt(0).toUpperCase() + sum.slice(1)}${live ? '' : ' · toca para ver'}</summary>
     ${st.length ? `<ol>${st.map(t => `<li>${esc(t)}</li>`).join('')}</ol>` : ''}
     ${src.length ? `<ul>${src.map(t => `<li><a href="https://powerlisting.fandom.com/wiki/${encodeURIComponent(t.replace(/ /g, '_'))}" target="_blank" rel="noopener">${esc(t)}</a></li>`).join('')}</ul>` : ''}</details>`;
 }
 function agentInner(m, c) {
-  if (m.pending && !m.text) return m.activity ? activityHTML(m.activity) : `<span class="typing-dots" aria-label="escribiendo"><i></i><i></i><i></i></span>`;
+  if (m.pending && !m.text) return traceHTML(m) + (m.activity ? activityHTML(m.activity) : `<span class="typing-dots" aria-label="escribiendo"><i></i><i></i><i></i></span>`);
   const n = countChars(m.text);
   const over = c.limit > 0 && n > c.limit;
-  let html = m.text ? `<div class="txt">${fmt(m.text)}</div>` : '';
+  let html = traceHTML(m) + (m.text ? `<div class="txt">${fmt(m.text)}</div>` : '');
   if (m.error) html += `<div class="err">${esc(m.error)}</div>`;
   if (m.note) html += `<div class="note">${esc(m.note)}</div>`;
   for (const n of m.toolNotes || []) html += `<div class="note">${esc(n)}</div>`;
   if (m.pending && m.activity) html += activityHTML(m.activity);
-  if (!m.pending) html += traceHTML(m);
   const tools = [];
   if (m.text && !m.pending) {
     tools.push(`<button class="mbtn" type="button" data-copy="${m.id}">${I.copy}Copiar</button>`);
@@ -1378,27 +1381,31 @@ async function generate(agentId, images) {
     (reply.toolNotes ||= []).push(TOOL_STATE_COPY[st](TOOLS[k].name));
     return false;
   });
-  let raw = '', mark = 0;
-  const tools = kinds.length ? buildTools(kinds, reply, agentId, () => { mark = raw.length; reply.text = ''; }) : null;
-  const ask = light => sample(buildTurns(a, reply.id, light ? [] : kinds, light), {
-    cache: false, signal: ctl.signal, modelTier: cfg(agentId).tier || 'default',
-    ...(images?.length ? { images } : {}),
-    ...(tools && !light ? { tools } : {}),
-    onText: ({ text }) => {
-      raw = text;
-      reply.text = raw.slice(mark).replace(/^\s+/, '');
-      if (reply.text) reply.activity = null;
-      if (!started) { started = true; list.forEach(m => { if (m.role === 'user') m.read = true; }); if (state.open === agentId) renderChat(); }
-      streamUpdate(agentId, reply);
-    },
-  });
+  const markRead = () => { if (!started) { started = true; list.forEach(m => { if (m.role === 'user') m.read = true; }); if (state.open === agentId) renderChat(); } };
   try {
-    const res = await ask(false);
-    reply.text = res.text.slice(mark).trim() || res.text.trim();
+    /* with tools on: a helper thinks first (Sequential Thinking / wiki), then this agent writes with its full prompt plus those notes */
+    let notes = null;
+    if (kinds.length) {
+      notes = await prethink(sample, agentId, kinds, reply, ctl.signal, markRead);
+      reply.activity = { kind: kinds.includes('seq') ? 'seq' : 'wiki', label: `${a.name} escribe con lo pensado…` };
+      streamUpdate(agentId, reply);
+    }
+    const turns = buildTurns(a, reply.id, [], false);
+    if (notes) turns.push({ role: 'user', content: notes });
+    const res = await sample(turns, {
+      cache: false, signal: ctl.signal, modelTier: cfg(agentId).tier || 'default',
+      ...(images?.length ? { images } : {}),
+      onText: ({ text }) => {
+        reply.text = text.replace(/^\s+/, '');
+        if (reply.text) reply.activity = null;
+        markRead();
+        streamUpdate(agentId, reply);
+      },
+    });
+    reply.text = res.text.trim();
     if (res.truncated) reply.note = 'Se cortó por largo. Escríbele "sigue" para que termine.';
   } catch (e) {
     const code = e?.code || 'upstream_error';
-    if (e?.text) e.text = e.text.slice(mark).trim();
     if (code === 'cancelled') { reply.text = e.text || ''; reply.note = 'Detuviste la respuesta.'; }
     else if (code === 'refused') { reply.text = ''; reply.error = ERR.refused; reply.retry = true; }
     else { reply.text = e?.text || ''; reply.error = ERR[code] || 'Se cortó la conexión con el agente. Toca Reintentar.'; reply.retry = RETRYABLE.has(code) || !ERR[code]; }
@@ -1415,6 +1422,25 @@ async function generate(agentId, images) {
     renderList();
     saveChat(agentId);
   }
+}
+async function prethink(sample, agentId, kinds, reply, signal, markRead) {
+  const last = [...chatOf(agentId)].reverse().find(m => m.role === 'user');
+  const msg = (last ? msgContent(last) : '').slice(0, 6000) || '(mensaje vacío)';
+  const seq = kinds.includes('seq'), wiki = kinds.includes('wiki');
+  const lv = seqLevel(agentId), L = SEQ_LEVELS[lv];
+  const tools = buildTools(kinds, reply, agentId, markRead);
+  const ask = [];
+  if (seq) ask.push(`Usa la herramienta ${L.tool} al menos ${L.min} veces (thoughtNumber 1, 2, 3…, nextThoughtNeeded false en el último)${lv === 'high' || lv === 'max' ? ', con al menos un camino alternativo (branchFromThought y branchId)' : ''}${lv === 'max' ? ' y revisando al menos un paso anterior (isRevision y revisesThought)' : ''} para pensar cómo responder este mensaje de un jugador de battle rol.`);
+  if (wiki) ask.push(`${seq ? 'Si' : 'Para responder este mensaje de un jugador de battle rol, si'} algún poder o habilidad necesita respaldo, búscalo con search_powerlisting y léelo con get_page (máximo 2 búsquedas).`);
+  reply.activity = { kind: seq ? 'seq' : 'wiki', label: seq ? `Sequential Thinking ${L.short} · empezando a pensar…` : 'Superpower Wiki · revisando…' };
+  streamUpdate(agentId, reply);
+  const res = await sample(`App Battle roleplay, paso previo antes de responder. ${ask.join(' ')} Mensaje: "${msg}". Después escribe en 2 a 4 líneas la conclusión${wiki ? ' y lo que encontraste en la wiki' : ''}.`, { cache: false, signal, tools, modelTier: 'quick' });
+  const parts = [];
+  if (reply.steps.length) parts.push(`Pasos pensados con Sequential Thinking (${L.label}):\n` + reply.steps.map((t, i) => `${i + 1}. ${t}`).join('\n'));
+  if (reply.sources.length) parts.push('Páginas leídas en la Superpower Wiki: ' + reply.sources.join(', '));
+  const concl = res.text.trim();
+  if (concl) parts.push('Conclusión: ' + concl.slice(0, 1500));
+  return `Notas que otro agente ya pensó para este mensaje:\n${parts.join('\n\n')}\nÚsalas para responder el mensaje anterior.`;
 }
 function setActivity(agentId, reply, kind, label) {
   reply.activity = { kind, label };
