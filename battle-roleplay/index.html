@@ -34,6 +34,7 @@
   --scrim: hsl(var(--h) 30% 8% / .45);
   --shadow: 0 1px 1px hsl(var(--h) 30% 15% / .14);
   --av-s: 50%; --av-l: 86%; --av-fl: 26%;
+  --mi-l: 44%; --mi-fg: hsl(0 0% 100%); --tc-l: 30%; --glow-a: .35;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -58,6 +59,7 @@
     --scrim: hsl(var(--h) 30% 2% / .62);
     --shadow: 0 1px 1px hsl(0 0% 0% / .35);
     --av-s: 38%; --av-l: 22%; --av-fl: 74%;
+    --mi-l: 58%; --mi-fg: hsl(var(--h) 40% 8%); --tc-l: 74%; --glow-a: .5;
     color-scheme: dark;
   }
 }
@@ -83,6 +85,7 @@
   --scrim: hsl(var(--h) 30% 2% / .62);
   --shadow: 0 1px 1px hsl(0 0% 0% / .35);
   --av-s: 38%; --av-l: 22%; --av-fl: 74%;
+  --mi-l: 58%; --mi-fg: hsl(var(--h) 40% 8%); --tc-l: 74%; --glow-a: .5;
   color-scheme: dark;
 }
 
@@ -340,6 +343,40 @@ textarea.inp { resize: vertical; min-height: 84px; line-height: 1.45; }
 .limit-pill { font-size: 11.5px; color: var(--meta); padding: 0 var(--gr) 0 var(--gl); text-align: right; margin-top: -4px; font-variant-numeric: tabular-nums; }
 .dropping .wall::after { content: "Suelta el archivo para adjuntarlo"; position: absolute; inset: 12px; border: 2px dashed var(--accent); border-radius: 14px; display: grid; place-items: center; font-weight: 600; color: var(--accent); background: color-mix(in srgb, var(--chat-bg) 80%, transparent); }
 
+/* attach menu + tools */
+.composer { position: relative; }
+.menu {
+  position: absolute; right: var(--gr); bottom: calc(100% + 6px); z-index: 6; width: min(360px, calc(100% - 32px));
+  background: var(--panel); border-radius: 18px; padding: 16px 12px 12px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 4px;
+  box-shadow: 0 12px 32px hsl(var(--h) 30% 4% / .32); border: 1px solid var(--line);
+}
+.menu-item { display: grid; justify-items: center; align-content: start; gap: 6px; font-size: 12px; font-weight: 600; color: var(--fg); text-align: center; line-height: 1.2; }
+.menu-item .mi { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; background: hsl(var(--mh) 62% var(--mi-l)); color: var(--mi-fg); position: relative; }
+.menu-item .mi svg { width: 24px; height: 24px; }
+.menu-item[aria-pressed="true"] .mi { box-shadow: 0 0 0 3px var(--panel), 0 0 0 5px hsl(var(--mh) 70% 55%), 0 0 18px hsl(var(--mh) 85% 60% / var(--glow-a)); }
+.menu-item[aria-disabled="true"] { opacity: .45; }
+.menu-item small { font-weight: 500; color: var(--fg-2); font-size: 11px; }
+.menu-note { grid-column: 1 / -1; margin: 2px 4px 0; font-size: 12.5px; color: var(--fg-2); border-top: 1px solid var(--line); padding-top: 10px; }
+.tool-row { display: flex; gap: 8px; flex-wrap: wrap; padding: 8px var(--gr) 0 var(--gl); }
+.tchip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px 6px 8px; border-radius: 16px; font-size: 13px; font-weight: 600;
+  color: hsl(var(--th) 70% var(--tc-l)); background: color-mix(in srgb, hsl(var(--th) 75% 50%) 14%, var(--in));
+  border: 1px solid hsl(var(--th) 75% 55% / .6); animation: glow 2.6s ease-in-out infinite;
+  box-shadow: 0 0 10px hsl(var(--th) 85% 60% / var(--glow-a));
+}
+.tchip svg { width: 16px; height: 16px; }
+.tchip .off { opacity: .7; }
+.tchip.dim { animation: none; box-shadow: none; opacity: .7; border-style: dashed; }
+@keyframes glow { 0%, 100% { box-shadow: 0 0 5px hsl(var(--th) 85% 60% / calc(var(--glow-a) * .6)); } 50% { box-shadow: 0 0 16px hsl(var(--th) 90% 60% / var(--glow-a)); } }
+.activity { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: hsl(var(--th) 70% var(--tc-l)); padding: 4px 2px; }
+.activity svg { width: 17px; height: 17px; flex: none; filter: drop-shadow(0 0 4px hsl(var(--th) 90% 60% / var(--glow-a))); }
+.activity span { animation: shimmer 1.6s ease-in-out infinite; min-width: 0; overflow-wrap: anywhere; }
+@keyframes shimmer { 50% { opacity: .5; } }
+.trace { margin-top: 6px; padding-top: 5px; border-top: 1px solid color-mix(in srgb, currentColor 12%, transparent); font-size: 13px; }
+.trace summary { cursor: pointer; color: var(--meta); font-weight: 600; }
+.trace ol, .trace ul { margin: 6px 0 2px; padding-left: 20px; display: grid; gap: 5px; color: var(--meta); }
+.trace a { color: var(--accent); }
+
 /* drawer + sheet */
 .drawer {
   position: absolute; top: 0; right: 0; bottom: 0; width: min(400px, 100%); z-index: 5;
@@ -455,12 +492,14 @@ textarea.big { min-height: 260px; font-size: 14px; }
       </header>
       <div class="wall"><div class="msgs" id="msgs" aria-live="polite"></div></div>
       <div class="suggest" id="suggest"></div>
+      <div class="tool-row" id="toolRow" hidden></div>
       <div class="attach-row" id="attachRow" hidden></div>
       <form class="composer" id="composer" autocomplete="off">
+        <div class="menu" id="attachMenu" hidden role="menu" aria-label="Adjuntar y herramientas"></div>
         <div class="cbox">
           <label class="vh" for="input">Mensaje</label>
           <textarea id="input" rows="1" placeholder="Mensaje"></textarea>
-          <button class="icon-btn" id="btnClip" type="button" aria-label="Adjuntar archivo o imagen" title="Adjuntar"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m20.5 11.5-8.4 8.4a5.2 5.2 0 0 1-7.4-7.4l8.6-8.6a3.5 3.5 0 0 1 5 5l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9"/></svg></button>
+          <button class="icon-btn" id="btnClip" type="button" aria-label="Adjuntar y herramientas" aria-haspopup="menu" aria-expanded="false" title="Adjuntar y herramientas"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m20.5 11.5-8.4 8.4a5.2 5.2 0 0 1-7.4-7.4l8.6-8.6a3.5 3.5 0 0 1 5 5l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9"/></svg></button>
         </div>
         <button class="send" id="btnSend" type="submit" aria-label="Enviar"></button>
       </form>
@@ -658,6 +697,10 @@ const I = {
   lock: SVG('<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'),
   x: SVG('<path d="M6 6l12 12M18 6 6 18"/>', 'style="width:14px;height:14px"'),
   close: SVG('<path d="M6 6l12 12M18 6 6 18"/>'),
+  doc: SVG('<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/>'),
+  img: SVG('<rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="m20.5 16-5-5-8 8"/>'),
+  seq: SVG('<circle cx="5.5" cy="6" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="18.5" cy="18" r="2"/><path d="m7 7.5 3.5 3M13.5 13.5l3.5 3"/><path d="M15 5h5M17.5 2.5v5"/>'),
+  wiki: SVG('<path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/><path d="m12 5.8.9 1.9 2 .3-1.4 1.4.3 2-1.8-1-1.8 1 .3-2L9.1 8l2-.3z"/>'),
 };
 const GLYPH = {
   sword: '<path d="M20 4 9.5 14.5"/><path d="M20 4h-4.2M20 4v4.2"/><path d="m6 12 6 6"/><path d="M7.6 16.4 4 20"/>',
@@ -750,6 +793,10 @@ const BASE = [
     suggest: ['Dame opciones para responder a esto: ', '¿Cómo empato su nivel sin solo defender?', 'Ideas para usar mi ficha de otra forma'] },
 ];
 const HUES = [158, 222, 268, 32, 356, 192, 95, 318, 12, 48, 245, 290];
+const TOOLS = {
+  seq: { name: 'Sequential Thinking', server: 'Sequential Thinking', hue: 196, icon: 'seq' },
+  wiki: { name: 'Superpower Wiki', server: 'superpower wiki', hue: 30, icon: 'wiki' },
+};
 
 const DEFAULT_GUSTOS = {
   apodo: '',
@@ -796,7 +843,7 @@ const agentById = id => agents().find(a => a.id === id);
 const hueOf = a => state.profile.chatCfg[a.id]?.hue ?? a.hue;
 function cfg(id) {
   const c = state.profile.chatCfg[id] ||= {};
-  return Object.assign({ mode: 'write', mine: '', rival: '', limit: 0, tier: 'default', extra: '' }, c);
+  return Object.assign({ mode: 'write', mine: '', rival: '', limit: 0, tier: 'default', extra: '', tools: {} }, c);
 }
 function setCfg(id, patch) { state.profile.chatCfg[id] = { ...(state.profile.chatCfg[id] || {}), ...patch }; saveProfile(); }
 const chatOf = id => (state.chats[id] ||= []);
@@ -809,9 +856,37 @@ const reads = (f, agentId) => f.scope === 'all' || (Array.isArray(f.scope) && f.
 const use = name => { try { return window.claude?.use ? window.claude.use(name).catch(() => null) : Promise.resolve(null); } catch { return Promise.resolve(null); } };
 const samplePromise = use('sample');
 let sampleLimits = null;
-samplePromise.then(s => s && s.limits().then(l => { sampleLimits = l; refreshAccept(); }).catch(() => {}));
+samplePromise.then(s => s && s.limits().then(l => { sampleLimits = l; refreshAccept(); renderToolRow(); renderMenu(); }).catch(() => {}));
 let assets = null;
 use('assets').then(a => { assets = a; });
+/* connectors: Sequential Thinking + Superpower Wiki, reached through the viewer's own claude.ai connectors */
+let mcp = null;
+const toolAvail = { seq: 'checking', wiki: 'checking' };
+const mcpReady = use('mcp').then(async m => {
+  mcp = m;
+  if (!m) { toolAvail.seq = toolAvail.wiki = 'noview'; return; }
+  try {
+    const { servers } = await m.listTools();
+    for (const k of Object.keys(TOOLS)) {
+      const sv = servers.find(x => x.server === TOOLS[k].server);
+      toolAvail[k] = !sv || !sv.tools?.length ? 'missing' : sv.authStatus === 'needs_reauth' ? 'reauth' : 'ok';
+    }
+  } catch { toolAvail.seq = toolAvail.wiki = 'ok'; }
+}).finally(() => { renderToolRow(); renderMenu(); });
+function toolState(k) {
+  if (sampleLimits && !sampleLimits.tools) return 'noview';
+  return toolAvail[k];
+}
+const TOOL_STATE_COPY = {
+  missing: n => `${n} no está conectado a tu cuenta. Agrégalo en claude.ai › Ajustes › Conectores.`,
+  reauth: n => `Reconecta ${n} en claude.ai › Ajustes › Conectores.`,
+  denied: n => `No le diste permiso a esta página para usar ${n}. Cámbialo en el menú Permisos del artefacto.`,
+  noview: n => `${n} no se puede usar en esta vista. Abre Battle roleplay desde claude.ai.`,
+};
+function activeTools(id) {
+  const t = cfg(id).tools || {};
+  return Object.keys(TOOLS).filter(k => t[k]);
+}
 let db = null, base = null;
 
 const LS_KEY = 'battle-roleplay-v1';
@@ -825,7 +900,7 @@ function lsWrite() {
 }
 function storeMsgs(list) {
   let out = list.filter(m => !m.pending).map(m => {
-    const o = { ...m }; delete o.pending;
+    const o = { ...m }; delete o.pending; delete o.activity;
     if (o.files) o.files = o.files.map(f => ({ name: f.name, kind: f.kind, asset: f.asset || undefined, text: f.text ? f.text.slice(0, 30000) : undefined }));
     return o;
   });
@@ -973,6 +1048,7 @@ function openChat(id) {
   $('#chatView').style.setProperty('--pattern', patternUrl(a.glyph));
   if (state.profile.unread[id]) { state.profile.unread[id] = 0; saveProfile(); }
   state.pending = [];
+  setMenu(false);
   renderAttach();
   renderChat(true);
   renderList();
@@ -1017,13 +1093,25 @@ function bubble(m, first, a) {
   }
   return `<div class="b in ${first ? 'first' : ''}" data-mid="${m.id}">${agentInner(m, c)}</div>`;
 }
+const activityHTML = act => `<div class="activity" style="--th:${TOOLS[act.kind].hue}">${I[TOOLS[act.kind].icon]}<span>${esc(act.label)}</span></div>`;
+function traceHTML(m) {
+  const st = m.steps || [], src = m.sources || [];
+  if (!st.length && !src.length) return '';
+  const sum = [st.length ? `pensó en ${st.length} paso${st.length > 1 ? 's' : ''}` : '', src.length ? `consultó ${src.length} página${src.length > 1 ? 's' : ''} de la wiki` : ''].filter(Boolean).join(' · ');
+  return `<details class="trace"><summary>${sum.charAt(0).toUpperCase() + sum.slice(1)}</summary>
+    ${st.length ? `<ol>${st.map(t => `<li>${esc(t)}</li>`).join('')}</ol>` : ''}
+    ${src.length ? `<ul>${src.map(t => `<li><a href="https://powerlisting.fandom.com/wiki/${encodeURIComponent(t.replace(/ /g, '_'))}" target="_blank" rel="noopener">${esc(t)}</a></li>`).join('')}</ul>` : ''}</details>`;
+}
 function agentInner(m, c) {
-  if (m.pending && !m.text) return `<span class="typing-dots" aria-label="escribiendo"><i></i><i></i><i></i></span>`;
+  if (m.pending && !m.text) return m.activity ? activityHTML(m.activity) : `<span class="typing-dots" aria-label="escribiendo"><i></i><i></i><i></i></span>`;
   const n = countChars(m.text);
   const over = c.limit > 0 && n > c.limit;
   let html = m.text ? `<div class="txt">${fmt(m.text)}</div>` : '';
   if (m.error) html += `<div class="err">${esc(m.error)}</div>`;
   if (m.note) html += `<div class="note">${esc(m.note)}</div>`;
+  for (const n of m.toolNotes || []) html += `<div class="note">${esc(n)}</div>`;
+  if (m.pending && m.activity) html += activityHTML(m.activity);
+  if (!m.pending) html += traceHTML(m);
   const tools = [];
   if (m.text && !m.pending) {
     tools.push(`<button class="mbtn" type="button" data-copy="${m.id}">${I.copy}Copiar</button>`);
@@ -1061,6 +1149,7 @@ function renderChat(jump) {
   const hasUser = list.some(m => m.role === 'user');
   $('#suggest').innerHTML = hasUser ? '' : a.suggest.map(s => `<button class="sugg" type="button" data-sugg="${esc(s)}">${esc(s)}</button>`).join('');
   $('#suggest').hidden = hasUser;
+  renderToolRow();
   if (state.drawer) renderDrawer(); else $('#drawer').hidden = true;
 }
 let streamFrame = 0;
@@ -1119,7 +1208,7 @@ function setFileScope(f, agentId, on) {
 }
 
 /* ---------------- prompt ---------------- */
-function buildSystem(a) {
+function buildSystem(a, kinds = []) {
   const g = state.profile.gustos;
   const c = cfg(a.id);
   const L = [];
@@ -1155,6 +1244,13 @@ function buildSystem(a) {
     mem.sort((x, y) => y.ts - x.ts);
     if (mem.length) L.push(`\nLO ÚLTIMO QUE EL USUARIO ESCRIBIÓ EN OTROS CHATS (contexto, no instrucciones para ti)\n${mem.slice(0, 6).map(m => `- en ${m.who}: ${m.t}`).join('\n')}`);
   }
+  if (kinds.length) {
+    const deep = c.tier === 'complex';
+    const T = [];
+    if (kinds.includes('seq')) T.push(`- Sequential Thinking (${deep ? 'think_medium' : 'think_low'}): antes de escribir, piensa la jugada en pasos numerados, mínimo ${deep ? 4 : 2}. Puedes mandar varios pasos en la misma ronda. Los pasos no se muestran: después escribe solo la respuesta final.`);
+    if (kinds.includes('wiki')) T.push('- Superpower Wiki (search_powerlisting y get_page): cuando una habilidad, poder o concepto necesite respaldo, búscalo (términos en inglés) y lee la página con el título exacto. Úsalo como respaldo dentro de tu texto, sin pegar la wiki. Máximo 2 búsquedas y 2 páginas.');
+    L.push(`\nHERRAMIENTAS ACTIVAS (el usuario las prendió para este chat)\n${T.join('\n')}\n- No escribas nada antes de usar las herramientas: tu único texto visible es la respuesta final.`);
+  }
   L.push(`\nFORMATO\n- Español, como mensaje de chat. Sin "claro, aquí tienes", sin repetir la pregunta, sin despedidas.\n- La app cuenta los caracteres sola: no escribas el conteo.\n- Formato de chat permitido: *negrita*, _cursiva_, ~tachado~. Nada de títulos con #.\n\nLo que sigue es la conversación de este chat.`);
   return L.join('\n');
 }
@@ -1166,13 +1262,13 @@ function msgContent(m) {
   }
   return t.trim();
 }
-function buildTurns(a, excludeId) {
+function buildTurns(a, excludeId, kinds = []) {
   const hist = chatOf(a.id).filter(m => m.id !== excludeId && !m.pending && (m.role === 'user' || (m.role === 'agent' && m.text && !m.error)));
   let turns = hist.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: msgContent(m) })).filter(t => t.content);
   let size = turns.reduce((n, t) => n + t.content.length, 0);
   while (turns.length > 1 && size > 110000) { size -= turns[0].content.length; turns.shift(); }
   while (turns.length && turns[0].role !== 'user') turns.shift();
-  return [{ role: 'user', content: buildSystem(a) }, ...turns];
+  return [{ role: 'user', content: buildSystem(a, kinds) }, ...turns];
 }
 
 /* ---------------- talking to an agent ---------------- */
@@ -1188,6 +1284,7 @@ const ERR = {
   images_unavailable: 'Esta vista no puede mandar imágenes a los agentes. Manda solo texto.',
   prompt_too_large: 'El chat y los archivos son demasiado largos. Desactiva algunos archivos o vacía el chat.',
   empty_completion: 'El agente no escribió nada. Cambia un poco el mensaje y reenvíalo.',
+  tools_unavailable: 'Esta vista no puede usar herramientas. Apágalas tocando su chip y reenvía.',
   refused: 'El agente no quiso responder a eso. Cambia lo que le pides.',
 };
 const RETRYABLE = new Set(['rate_limited', 'session_expired', 'upstream_error', 'empty_completion', 'timeout']);
@@ -1207,25 +1304,39 @@ async function generate(agentId, images) {
     return finish();
   }
   let started = false;
+  let kinds = activeTools(agentId);
+  if (kinds.length) await mcpReady;
+  kinds = kinds.filter(k => {
+    const st = toolState(k);
+    if (st === 'ok' || st === 'checking') return true;
+    (reply.toolNotes ||= []).push(TOOL_STATE_COPY[st](TOOLS[k].name));
+    return false;
+  });
+  let raw = '', mark = 0;
+  const tools = kinds.length ? buildTools(kinds, reply, agentId, () => { mark = raw.length; reply.text = ''; }) : null;
   try {
-    const res = await sample(buildTurns(a, reply.id), {
+    const res = await sample(buildTurns(a, reply.id, kinds), {
       cache: false, signal: ctl.signal, modelTier: cfg(agentId).tier || 'default',
       ...(images?.length ? { images } : {}),
+      ...(tools ? { tools } : {}),
       onText: ({ text }) => {
-        reply.text = text;
+        raw = text;
+        reply.text = raw.slice(mark).replace(/^\s+/, '');
+        if (reply.text) reply.activity = null;
         if (!started) { started = true; list.forEach(m => { if (m.role === 'user') m.read = true; }); if (state.open === agentId) renderChat(); }
         streamUpdate(agentId, reply);
       },
     });
-    reply.text = res.text;
+    reply.text = res.text.slice(mark).trim() || res.text.trim();
     if (res.truncated) reply.note = 'Se cortó por largo. Escríbele "sigue" para que termine.';
   } catch (e) {
     const code = e?.code || 'upstream_error';
+    if (e?.text) e.text = e.text.slice(mark).trim();
     if (code === 'cancelled') { reply.text = e.text || ''; reply.note = 'Detuviste la respuesta.'; }
     else if (code === 'refused') { reply.text = ''; reply.error = ERR.refused; }
     else { reply.text = e?.text || ''; reply.error = ERR[code] || 'Se cortó la conexión con el agente. Toca Reintentar.'; reply.retry = RETRYABLE.has(code) || !ERR[code]; }
   }
-  reply.pending = false;
+  reply.pending = false; reply.activity = null;
   list.forEach(m => { if (m.role === 'user') m.read = true; });
   finish();
   function finish() {
@@ -1238,6 +1349,96 @@ async function generate(agentId, images) {
     saveChat(agentId);
   }
 }
+function setActivity(agentId, reply, kind, label) {
+  reply.activity = { kind, label };
+  streamUpdate(agentId, reply);
+}
+function mcpErrCopy(k, e) {
+  const n = TOOLS[k].name;
+  switch (e?.code) {
+    case 'server_not_connected': case 'server_not_found': toolAvail[k] = 'missing'; return TOOL_STATE_COPY.missing(n);
+    case 'needs_reauth': toolAvail[k] = 'reauth'; return TOOL_STATE_COPY.reauth(n);
+    case 'not_in_manifest': toolAvail[k] = 'denied'; return TOOL_STATE_COPY.denied(n);
+    case 'selection_required': return `Tienes más de un conector llamado ${n}: elige cuál usar en el aviso de claude.ai.`;
+    case 'blocked_by_policy': toolAvail[k] = 'denied'; return `Tu organización bloquea ${n} para esta página.`;
+    case 'approval_required': return `${n} necesita tu aprobación en claude.ai.`;
+    case 'server_unavailable': return `${n} no responde ahora. Prueba de nuevo en un rato.`;
+    case 'tool_error': return `${n} devolvió un error: ${String(e.message || '').slice(0, 160)}`;
+    case 'cancelled': return `Se canceló la llamada a ${n}.`;
+    case 'not_granted': case 'capability_disabled': case 'capability_removed': toolAvail[k] = 'noview'; return TOOL_STATE_COPY.noview(n);
+    default: return `${n} falló (${e?.code || 'error desconocido'}).`;
+  }
+}
+async function callConnector(k, tool, args, signal, reply, cap, cacheable) {
+  if (!mcp) { const m = TOOL_STATE_COPY.noview(TOOLS[k].name); (reply.toolNotes ||= []).push(m); throw new Error(m); }
+  try {
+    const res = await mcp.callTool(TOOLS[k].server, tool, args, cacheable ? { signal } : { signal, cache: false });
+    let out = res.payload ?? (res.content || []).map(b => b.text || '').join('\n');
+    if (typeof out !== 'string') out = JSON.stringify(out);
+    return out.length > cap ? out.slice(0, cap) + '\n[recortado]' : out;
+  } catch (e) {
+    const msg = mcpErrCopy(k, e);
+    reply.toolNotes = [...new Set([...(reply.toolNotes || []), msg])];
+    renderToolRow();
+    throw new Error(msg);
+  }
+}
+function buildTools(kinds, reply, agentId, onToolStart) {
+  const T = [];
+  reply.steps = []; reply.sources = [];
+  if (kinds.includes('seq')) {
+    const deep = cfg(agentId).tier === 'complex';
+    const tool = deep ? 'think_medium' : 'think_low';
+    T.push({
+      name: tool,
+      description: `Sequential Thinking: registra un paso de tu razonamiento antes de responder. Llámalo al menos ${deep ? 4 : 2} veces con thoughtNumber 1, 2, 3… y nextThoughtNeeded=false en el último. Devuelve el estado del razonamiento.`,
+      inputSchema: { type: 'object', properties: {
+        thought: { type: 'string', description: 'Tu paso de razonamiento actual' },
+        thoughtNumber: { type: 'integer', description: 'Número de este paso, desde 1' },
+        totalThoughts: { type: 'integer', description: `Pasos planeados (mínimo ${deep ? 4 : 2})` },
+        nextThoughtNeeded: { type: 'boolean', description: 'Si hace falta otro paso' },
+      }, required: ['thought', 'thoughtNumber', 'totalThoughts', 'nextThoughtNeeded'] },
+      execute: async (input, { signal }) => {
+        onToolStart();
+        const args = { thought: String(input.thought || '').slice(0, 4000), thoughtNumber: Math.max(1, parseInt(input.thoughtNumber, 10) || 1), totalThoughts: Math.max(deep ? 4 : 2, parseInt(input.totalThoughts, 10) || 0), nextThoughtNeeded: input.nextThoughtNeeded === true || input.nextThoughtNeeded === 'true' };
+        reply.steps.push(args.thought.slice(0, 700));
+        setActivity(agentId, reply, 'seq', `Sequential Thinking · paso ${args.thoughtNumber} de ${args.totalThoughts}`);
+        return callConnector('seq', tool, args, signal, reply, 3000, false);
+      },
+    });
+  }
+  if (kinds.includes('wiki')) {
+    T.push({
+      name: 'search_powerlisting',
+      description: 'Superpower Wiki: busca páginas en powerlisting.fandom.com. Devuelve títulos con un fragmento. Úsalo para encontrar poderes, habilidades, conceptos o personajes.',
+      inputSchema: { type: 'object', properties: {
+        query: { type: 'string', description: 'Términos de búsqueda en inglés, ej. time manipulation' },
+        limit: { type: 'number', description: 'Máximo de resultados, 1 a 10' },
+      }, required: ['query'] },
+      execute: async (input, { signal }) => {
+        onToolStart();
+        const query = String(input.query || '').slice(0, 200);
+        setActivity(agentId, reply, 'wiki', `Superpower Wiki · buscando "${query}"`);
+        return callConnector('wiki', 'search_powerlisting', { query, limit: Math.min(10, Math.max(1, Number(input.limit) || 6)) }, signal, reply, 6000, true);
+      },
+    });
+    T.push({
+      name: 'get_page',
+      description: 'Superpower Wiki: devuelve el contenido de una página por su título exacto. Usa primero search_powerlisting para tener el título correcto.',
+      inputSchema: { type: 'object', properties: { title: { type: 'string', description: "Título exacto, ej. 'Time Manipulation'" } }, required: ['title'] },
+      execute: async (input, { signal }) => {
+        onToolStart();
+        const title = String(input.title || '').slice(0, 200);
+        setActivity(agentId, reply, 'wiki', `Superpower Wiki · leyendo "${title}"`);
+        const out = await callConnector('wiki', 'get_page', { title }, signal, reply, 14000, true);
+        if (!reply.sources.includes(title)) reply.sources.push(title);
+        return out;
+      },
+    });
+  }
+  return T;
+}
+
 async function send() {
   const id = state.open; if (!id) return;
   if (state.gen[id]) { state.gen[id].ctl.abort(); return; }
@@ -1288,6 +1489,51 @@ function renderAttach() {
   const row = $('#attachRow');
   row.hidden = !state.pending.length;
   row.innerHTML = state.pending.map(p => `<span class="pend">${p.kind === 'image' ? `<img src="${esc(p.local)}" alt="">` : I.file}<span>${esc(p.name)}</span><button type="button" data-unpend="${p.id}" aria-label="Quitar ${esc(p.name)}">${I.x}</button></span>`).join('');
+}
+
+/* ---------------- clip menu + glowing tool chips ---------------- */
+function stateLabel(st) { return st === 'missing' ? 'no conectado' : st === 'reauth' ? 'reconectar' : st === 'denied' ? 'sin permiso' : st === 'noview' ? 'no disponible' : ''; }
+function renderMenu() {
+  const menu = $('#attachMenu'); if (!menu || !state.open) return;
+  const t = cfg(state.open).tools || {};
+  const canImg = !!sampleLimits?.images;
+  const item = (key, hue, icon, label, extra) => `<button type="button" class="menu-item" role="menuitem" data-menu="${key}" style="--mh:${hue}" ${extra || ''}><span class="mi">${I[icon]}</span>${label}</button>`;
+  const toolItem = k => {
+    const st = toolState(k);
+    const off = st !== 'ok' && st !== 'checking';
+    return item(k, TOOLS[k].hue, TOOLS[k].icon, `${TOOLS[k].name}<small>${t[k] ? 'activo' : off ? stateLabel(st) : 'toca para activar'}</small>`, `role="menuitemcheckbox" aria-pressed="${!!t[k]}" ${off && !t[k] ? 'aria-disabled="true"' : ''}`);
+  };
+  menu.innerHTML = item('doc', 262, 'doc', 'Documento<small>.txt .md</small>')
+    + item('img', 330, 'img', `Imagen<small>${canImg ? 'jpg png' : 'no disponible'}</small>`, canImg ? '' : 'aria-disabled="true"')
+    + toolItem('seq') + toolItem('wiki')
+    + `<p class="menu-note">Las herramientas que actives brillan encima del mensaje. Tócalas ahí para apagarlas.</p>`;
+}
+function setMenu(open) {
+  const menu = $('#attachMenu');
+  menu.hidden = !open;
+  $('#btnClip').setAttribute('aria-expanded', String(open));
+  if (open) { renderMenu(); menu.querySelector('.menu-item')?.focus(); }
+}
+function toggleTool(k) {
+  const id = state.open; if (!id) return;
+  const t = { ...(cfg(id).tools || {}) };
+  const st = toolState(k);
+  if (!t[k] && st !== 'ok' && st !== 'checking') { toast(TOOL_STATE_COPY[st](TOOLS[k].name)); return; }
+  t[k] = !t[k];
+  setCfg(id, { tools: t });
+  renderToolRow(); renderMenu();
+  toast(t[k] ? `${TOOLS[k].name} activado` : `${TOOLS[k].name} apagado`);
+}
+function renderToolRow() {
+  const row = $('#toolRow'); if (!row) return;
+  const id = state.open;
+  const on = id ? activeTools(id) : [];
+  row.hidden = !on.length;
+  row.innerHTML = on.map(k => {
+    const st = toolState(k);
+    const bad = st !== 'ok' && st !== 'checking';
+    return `<button type="button" class="tchip ${bad ? 'dim' : ''}" style="--th:${TOOLS[k].hue}" data-tool-off="${k}" aria-label="Apagar ${TOOLS[k].name}" title="Toca para apagar">${I[TOOLS[k].icon]}${TOOLS[k].name}${bad ? ` · ${stateLabel(st)}` : ''}<span class="off">${I.x}</span></button>`;
+  }).join('');
 }
 
 /* ---------------- files pane ---------------- */
@@ -1526,7 +1772,24 @@ ta.addEventListener('paste', e => {
   const files = [...(e.clipboardData?.files || [])];
   if (files.length) { e.preventDefault(); addAttachments(files); }
 });
-$('#btnClip').addEventListener('click', () => $('#fileInput').click());
+$('#btnClip').addEventListener('click', e => { e.stopPropagation(); setMenu($('#attachMenu').hidden); });
+$('#attachMenu').addEventListener('click', e => {
+  const b = e.target.closest('[data-menu]'); if (!b) return;
+  const k = b.dataset.menu;
+  if (k === 'doc' || k === 'img') {
+    if (b.getAttribute('aria-disabled') === 'true') { toast('Esta vista no puede mandar imágenes a los agentes.'); return; }
+    const fi = $('#fileInput');
+    fi.accept = k === 'img' ? (sampleLimits?.images?.mediaTypes || []).join(',') : '.txt,.md,.markdown,.json,.csv,.log,text/plain,text/markdown';
+    setMenu(false); fi.click(); return;
+  }
+  toggleTool(k);
+  setMenu(false);
+});
+$('#toolRow').addEventListener('click', e => { const b = e.target.closest('[data-tool-off]'); if (b) toggleTool(b.dataset.toolOff); });
+document.addEventListener('click', e => {
+  const menu = $('#attachMenu');
+  if (!menu.hidden && !menu.contains(e.target) && !e.target.closest('#btnClip')) setMenu(false);
+});
 $('#fileInput').addEventListener('change', e => { addAttachments([...e.target.files]); e.target.value = ''; });
 const chatEl = $('#chat');
 chatEl.addEventListener('dragover', e => { if (state.open && e.dataTransfer?.types?.includes('Files')) { e.preventDefault(); chatEl.classList.add('dropping'); } });
@@ -1550,7 +1813,8 @@ $('#fileList').addEventListener('click', e => { const b = e.target.closest('[dat
 
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
-  if (!$('#sheetWrap').hidden) closeSheet();
+  if (!$('#attachMenu').hidden) { setMenu(false); $('#btnClip').focus(); }
+  else if (!$('#sheetWrap').hidden) closeSheet();
   else if (state.drawer) { state.drawer = false; $('#drawer').hidden = true; }
 });
 document.addEventListener('visibilitychange', () => {
