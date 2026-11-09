@@ -395,7 +395,10 @@ textarea.inp { resize: vertical; min-height: 84px; line-height: 1.45; }
 .wk-type { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--meta); }
 .wk-title { margin: 1px 0 2px; font-size: 14.5px; font-weight: 700; text-wrap: balance; }
 .wk-title a { color: var(--in-fg); text-decoration-color: hsl(30 75% 55% / .6); }
-.wk-entry p { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--in-fg); overflow-wrap: anywhere; }
+.wk-entry p { margin: 0 0 4px; font-size: 13.5px; line-height: 1.45; color: var(--in-fg); overflow-wrap: anywhere; }
+.wk-h { margin: 6px 0 1px; font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: hsl(30 75% var(--tc-l)); }
+.trace ul.wk-list { margin: 2px 0 4px; padding-left: 18px; gap: 2px; list-style: disc; color: var(--in-fg); font-size: 13.5px; line-height: 1.45; overflow-wrap: anywhere; }
+.wk-snip { color: var(--fg-2); }
 .trace a { color: var(--accent); }
 
 /* memories, system notes, edit bar */
@@ -1268,31 +1271,46 @@ function bubble(m, first, a) {
 }
 const ACT = k => TOOLS[k] || ({ mem: { hue: 44, icon: 'pin' } })[k] || TOOLS.seq;
 const activityHTML = act => `<div class="activity" style="--th:${ACT(act.kind).hue}">${I[ACT(act.kind).icon]}<span>${esc(act.label)}</span></div>`;
-/* Superpower Wiki results, organized for the bubble */
-function wikiTitles(out) {
+/* Superpower Wiki results, shown in full and organized for the bubble */
+const wikiLink = t => `https://powerlisting.fandom.com/wiki/${encodeURIComponent(String(t).replace(/ /g, '_'))}`;
+function wikiText(out) {
+  let t = String(out || '');
+  try { const v = JSON.parse(t); if (v && typeof v === 'object' && !Array.isArray(v)) t = String(v.content ?? v.text ?? v.extract ?? v.wikitext ?? v.body ?? JSON.stringify(v, null, 1)); } catch {}
+  return t.replace(/\[\[(?:[^\]|]*\|)?([^\]]*)\]\]/g, '$1').replace(/'{2,}/g, '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').replace(/\{\{|\}\}/g, '');
+}
+function wikiBodyHTML(out) {
+  let html = '', list = [];
+  const flush = () => { if (list.length) { html += `<ul class="wk-list">${list.join('')}</ul>`; list = []; } };
+  for (const raw of wikiText(out).split('\n')) {
+    const l = raw.trim(); if (!l) continue;
+    const h = l.match(/^=+\s*(.+?)\s*=+$/);
+    if (h) { flush(); html += `<div class="wk-h">${esc(h[1])}</div>`; continue; }
+    const b = l.match(/^[*#]+\s*(.*)$/);
+    if (b) { list.push(`<li>${esc(b[1])}</li>`); continue; }
+    flush(); html += `<p>${esc(l)}</p>`;
+  }
+  flush();
+  return html;
+}
+function wikiSearchHTML(out) {
   try {
     const v = JSON.parse(out);
     const arr = Array.isArray(v) ? v : Array.isArray(v?.results) ? v.results : Array.isArray(v?.pages) ? v.pages : null;
-    if (arr) return arr.map(x => typeof x === 'string' ? x : x?.title || x?.name || '').filter(Boolean).slice(0, 6);
+    if (arr) return `<ul class="wk-list">${arr.map(x => {
+      if (typeof x === 'string') return `<li><a href="${wikiLink(x)}" target="_blank" rel="noopener">${esc(x)}</a></li>`;
+      const t = x?.title || x?.name || '';
+      const rest = Object.entries(x || {}).filter(([k]) => k !== 'title' && k !== 'name').map(([, val]) => esc(typeof val === 'string' ? val : JSON.stringify(val))).join(' · ');
+      return `<li>${t ? `<a href="${wikiLink(t)}" target="_blank" rel="noopener">${esc(t)}</a>` : ''}${rest ? ` <span class="wk-snip">${rest}</span>` : ''}</li>`;
+    }).join('')}</ul>`;
   } catch {}
-  return [];
+  return wikiBodyHTML(out);
 }
-function wikiExcerpt(out) {
-  let t = String(out || '');
-  try { const v = JSON.parse(t); if (v && typeof v === 'object') t = String(v.content || v.text || v.extract || v.wikitext || v.body || JSON.stringify(v)); } catch {}
-  t = t.replace(/\[\[(?:[^\]|]*\|)?([^\]]*)\]\]/g, '$1').replace(/\{\{[^}]*\}\}/g, ' ').replace(/'{2,}/g, '').replace(/<[^>]+>/g, ' ').replace(/=+\s*([^=\n]+?)\s*=+/g, '\n$1\n');
-  const i = t.search(/\n\s*(capabilities|capacidades)\s*\n/i);
-  if (i >= 0) { t = t.slice(i).replace(/^\s*\S+\s*/, ''); const j = t.search(/\n[^\n]{1,40}\n/); if (j > 0) t = t.slice(0, j); }
-  t = t.replace(/\s+/g, ' ').trim();
-  return t.length > 320 ? t.slice(0, 320).replace(/\s+\S*$/, '') + '…' : t;
-}
-const wikiLink = t => `https://powerlisting.fandom.com/wiki/${encodeURIComponent(String(t).replace(/ /g, '_'))}`;
 function wikiHTML(m) {
   const items = m.wk || (m.sources || []).map(title => ({ kind: 'page', title }));
   if (!items.length) return '';
   return `<div class="wk-body"><div class="wk-sec">Superpower Wiki</div>${items.map(w => w.kind === 'search'
-    ? `<article class="wk-entry"><div class="wk-type">Búsqueda</div><p>«${esc(w.q)}»${w.found?.length ? ' → ' + w.found.map(esc).join(', ') : ''}</p></article>`
-    : `<article class="wk-entry"><div class="wk-type">Página</div><h4 class="wk-title"><a href="${wikiLink(w.title)}" target="_blank" rel="noopener">${esc(w.title)}</a></h4>${w.ex ? `<p>${esc(w.ex)}</p>` : ''}</article>`).join('')}</div>`;
+    ? `<article class="wk-entry"><div class="wk-type">Búsqueda · «${esc(w.q)}»</div>${w.raw ? wikiSearchHTML(w.raw) : w.found?.length ? `<p>${w.found.map(esc).join(', ')}</p>` : ''}</article>`
+    : `<article class="wk-entry"><div class="wk-type">Página</div><h4 class="wk-title"><a href="${wikiLink(w.title)}" target="_blank" rel="noopener">${esc(w.title)}</a></h4>${w.raw ? wikiBodyHTML(w.raw) : w.ex ? `<p>${esc(w.ex)}</p>` : ''}</article>`).join('')}</div>`;
 }
 function traceHTML(m) {
   const st = m.steps || [], src = m.sources || [], wb = m.web || [];
@@ -1761,8 +1779,8 @@ function buildTools(kinds, reply, agentId, onToolStart, lvOverride = null) {
         onToolStart();
         const query = String(input.query || '').slice(0, 200);
         setActivity(agentId, reply, 'wiki', `Superpower Wiki · buscando "${query}"`);
-        const out = await callConnector('wiki', 'search_powerlisting', { query, limit: Math.min(10, Math.max(1, Number(input.limit) || 6)) }, signal, reply, 6000, true);
-        (reply.wk ||= []).push({ kind: 'search', q: query, found: wikiTitles(out) });
+        const out = await callConnector('wiki', 'search_powerlisting', { query, limit: Math.min(10, Math.max(1, Number(input.limit) || 6)) }, signal, reply, 10000, true);
+        (reply.wk ||= []).push({ kind: 'search', q: query, raw: out });
         streamUpdate(agentId, reply);
         return out;
       },
@@ -1775,9 +1793,9 @@ function buildTools(kinds, reply, agentId, onToolStart, lvOverride = null) {
         onToolStart();
         const title = String(input.title || '').slice(0, 200);
         setActivity(agentId, reply, 'wiki', `Superpower Wiki · leyendo "${title}"`);
-        const out = await callConnector('wiki', 'get_page', { title }, signal, reply, 14000, true);
+        const out = await callConnector('wiki', 'get_page', { title }, signal, reply, 28000, true);
         if (!reply.sources.includes(title)) reply.sources.push(title);
-        (reply.wk ||= []).push({ kind: 'page', title, ex: wikiExcerpt(out) });
+        (reply.wk ||= []).push({ kind: 'page', title, raw: out });
         streamUpdate(agentId, reply);
         return out;
       },
