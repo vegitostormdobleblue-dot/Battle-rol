@@ -937,6 +937,7 @@ function deleteFile(id) { dbWrite('file:' + id, () => ({ ref: profileRef().colle
 
 function mergeProfile(p) {
   if (!p) return;
+  p = JSON.parse(JSON.stringify(p));
   state.profile = {
     gustos: { ...DEFAULT_GUSTOS, ...(p.gustos || {}) },
     agents: Array.isArray(p.agents) ? p.agents : [],
@@ -958,7 +959,8 @@ async function boot() {
   db = d; base = 'data/users/' + uid;
   try {
     const [snap, fsnap] = await timeout(Promise.all([db.collection(base).get(), profileRef().collection('files').get()]), 10000);
-    const docs = Object.fromEntries(snap.docs.map(s => [s.id, s.data()]));
+    const thaw = v => JSON.parse(JSON.stringify(v ?? {}));
+    const docs = Object.fromEntries(snap.docs.map(s => [s.id, thaw(s.data())]));
     if (docs.profile) {
       if (!state.dirty.profile) mergeProfile(docs.profile);
       for (const [k, v] of Object.entries(docs)) {
@@ -967,7 +969,7 @@ async function boot() {
         if (state.dirty.chats.has(id)) continue;
         state.chats[id] = Array.isArray(v.msgs) ? v.msgs.map(m => ({ ...m })) : [];
       }
-      if (!state.dirty.files) state.files = fsnap.docs.map(s => ({ id: s.id, ...s.data() }));
+      if (!state.dirty.files) state.files = fsnap.docs.map(s => ({ id: s.id, ...thaw(s.data()) }));
     }
     setStoreNote(true);
     renderAll();
@@ -1859,6 +1861,8 @@ document.addEventListener('visibilitychange', () => {
 });
 matchMedia('(min-width: 860px)').addEventListener('change', () => { if (!state.open) applyHue(DEFAULT_HUE); });
 
+window.addEventListener('error', e => toast('Algo falló: ' + String(e.message || e.error || '').slice(0, 120)));
+window.addEventListener('unhandledrejection', e => { const r = e.reason; if (r && r.code === 'cancelled') return; toast('Algo falló: ' + String(r?.message || r?.code || r || '').slice(0, 120)); });
 setTab('chats');
 applyHue(DEFAULT_HUE);
 boot();
