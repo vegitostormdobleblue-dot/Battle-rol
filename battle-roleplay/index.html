@@ -434,6 +434,12 @@ textarea.inp { resize: vertical; min-height: 84px; line-height: 1.45; }
 .opt[aria-checked="true"] .opt-state { color: hsl(196 70% var(--tc-l)); }
 .opt-head { font-size: 13px; color: var(--fg-2); margin: 0 4px 8px; }
 
+/* action options (Debunkear / Defensivo / Atacante) */
+.s-badge.mv { color: hsl(var(--th) 70% var(--tc-l)); }
+.s-badge svg { width: 18px; height: 18px; }
+.opt.mvopt[aria-checked="true"] { box-shadow: inset 3px 0 0 hsl(var(--th) 75% 55%); }
+.opt.mvopt[aria-checked="true"] .opt-state { color: hsl(var(--th) 70% var(--tc-l)); }
+
 /* drawer + sheet */
 .drawer {
   position: absolute; top: 0; right: 0; bottom: 0; width: min(400px, 100%); z-index: 5;
@@ -777,6 +783,10 @@ const I = {
   web: SVG('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>'),
   pencil: SVG('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>'),
   pin: SVG('<path d="M7 3h10v18l-5-4-5 4z"/>'),
+  opts: SVG('<path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6M16 16l4 4M19 21l2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="m5 14 4 4M7 17l-3 3M3 19l2 2"/>'),
+  mv_deb: SVG('<path d="M12 3 19 6v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6Z"/><path d="m9.5 9.5 5 5M14.5 9.5l-5 5"/>'),
+  mv_def: SVG('<path d="M12 3 19 6v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6Z"/>'),
+  mv_atk: SVG('<path d="M20 4 9.5 14.5"/><path d="M20 4h-4.2M20 4v4.2"/><path d="m6 12 6 6"/><path d="M7.6 16.4 4 20"/>'),
   trash: SVG('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
   doc: SVG('<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/>'),
   img: SVG('<rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="m20.5 16-5-5-8 8"/>'),
@@ -874,6 +884,16 @@ const BASE = [
     suggest: ['Dame opciones para responder a esto: ', '¿Cómo empato su nivel sin solo defender?', 'Ideas para usar mi ficha de otra forma'] },
 ];
 const HUES = [158, 222, 268, 32, 356, 192, 95, 318, 12, 48, 245, 290];
+const MOVES = {
+  deb: { name: 'Debunkear', hue: 280, desc: 'Desarma las falacias, contradicciones y auto-nerfeos del ataque del rival.',
+    prompt: 'DEBUNKEAR: desarma el texto del rival. Cita sus palabras exactas, di qué tipo de falla es (auto-referencia circular, conceptual común ignorado, inflación sin escala, tipo contra tipo equivocado, temporalidad imposible, omnisciencia narrativa, ad hoc, contradicción o auto-nerfeo), explica por qué no funciona y respáldalo con un principio, una analogía o lo que el personaje del usuario ya hizo. Abre con la refutación, nunca con reconocimiento, y no inventes lore del rival.' },
+  def: { name: 'Defensivo', hue: 205, desc: 'Defenderse del ataque: tankearlo, anularlo o esquivarlo con mecánica de la ficha.',
+    prompt: 'DEFENSIVO: el personaje del usuario se defiende del ataque del rival: lo tankea, lo anula o lo esquiva con una mecánica concreta de su ficha, explicando por qué ese ataque no logra efecto (nivel contra nivel, nunca "lo bloquea porque puede") y dónde queda parado después.' },
+  atk: { name: 'Atacante', hue: 12, desc: 'Atacar al enemigo con una técnica o golpe respaldado.',
+    prompt: 'ATACANTE: el personaje del usuario ataca al rival: el gesto que dispara la técnica, el núcleo (qué afecta realmente, a qué nivel y por qué funciona) y el efecto que busca, sin decidir cómo termina el rival.' },
+};
+const MOVE_ORDER = ['deb', 'def', 'atk'];
+const activeMoves = id => MOVE_ORDER.filter(k => (cfg(id).moves || {})[k]);
 const SEQ_LEVELS = {
   low: { tool: 'think_low', label: 'Think low', short: 'Low', min: 2, desc: '2 pasos. Rápido, para jugadas simples.' },
   medium: { tool: 'think_medium', label: 'Think medium', short: 'Medium', min: 4, desc: '4 pasos. Para la mayoría de las acciones.' },
@@ -1400,6 +1420,8 @@ function buildSystem(a, kinds = [], light = false, lvOverride = null) {
     if (kinds.includes('wiki')) T.push('- Superpower Wiki (search_powerlisting y get_page): cuando una habilidad, poder o concepto necesite respaldo, búscalo (términos en inglés) y lee la página con el título exacto. Úsalo como respaldo dentro de tu texto, sin pegar la wiki. Máximo 2 búsquedas y 2 páginas.');
     L.push(`\nHERRAMIENTAS ACTIVAS (el usuario las prendió para este chat)\n${T.join('\n')}\n- No escribas nada antes de usar las herramientas: tu único texto visible es la respuesta final.`);
   }
+  const mv = activeMoves(a.id);
+  if (mv.length) L.push(`\nTIPO DE ACCIÓN QUE ELIGIÓ EL USUARIO (manda sobre el resto)\n${mv.map(k => '- ' + MOVES[k].prompt).join('\n')}${mv.length > 1 ? `\n- Todo en un solo bloque corrido, en este orden: ${mv.map(k => MOVES[k].name.toLowerCase()).join(', después ')}, unido con transiciones naturales ("asi que", "ademas", "ahora mismo").` : ''}\n- Si hace falta el texto del rival y el usuario no lo pegó, pídeselo en una línea.`);
   L.push(`\nFORMATO\n- Español, como mensaje de chat. Sin "claro, aquí tienes", sin repetir la pregunta, sin despedidas.\n- La app cuenta los caracteres sola: no escribas el conteo.\n- Formato de chat permitido: *negrita*, _cursiva_, ~tachado~. Nada de títulos con #.\n\nLo que sigue es la conversación de este chat.`);
   return L.join('\n');
 }
@@ -1521,6 +1543,8 @@ async function prethink(sample, agentId, kinds, reply, signal, markRead) {
   const lv = seqLevel(agentId), L = SEQ_LEVELS[lv];
   const tools = buildTools(kinds, reply, agentId, markRead);
   const ask = [];
+  const mvs = activeMoves(agentId);
+  if (mvs.length) ask.push(`El jugador pidió una acción de tipo: ${mvs.map(k => MOVES[k].name).join(' + ')}.`);
   if (seq) ask.push(`Usa la herramienta ${L.tool} al menos ${L.min} veces (thoughtNumber 1, 2, 3…, nextThoughtNeeded false en el último)${lv === 'high' || lv === 'max' ? ', con al menos un camino alternativo (branchFromThought y branchId)' : ''}${lv === 'max' ? ' y revisando al menos un paso anterior (isRevision y revisesThought)' : ''} para pensar cómo responder este mensaje de un jugador de battle rol.`);
   if (wiki) ask.push(`${seq ? 'Si' : 'Para responder este mensaje de un jugador de battle rol, si'} algún poder o habilidad necesita respaldo, búscalo con search_powerlisting y léelo con get_page (máximo 2 búsquedas).`);
   if (web) ask.push(`${seq || wiki ? 'Además, si' : 'Para responder este mensaje de un jugador de battle rol: si'} hace falta un dato que no sabes con seguridad (un personaje, una habilidad, lore, una serie o juego, algo reciente), búscalo en internet con web_search; usa web_fetch solo si los extractos no alcanzan (máximo 2 búsquedas y 1 lectura). Si no hace falta, no busques.`);
@@ -1821,6 +1845,7 @@ function renderMenu() {
   menu.innerHTML = item('doc', 262, 'doc', 'Documento<small>.txt .md</small>')
     + item('img', 330, 'img', `Imagen<small>${canImg ? 'jpg png' : 'no disponible'}</small>`, canImg ? '' : 'aria-disabled="true"')
     + toolItem('seq') + toolItem('wiki')
+    + item('opts', 280, 'opts', `Opciones<small>${activeMoves(state.open).map(k => MOVES[k].name).join(' + ') || 'tipo de acción'}</small>`, `aria-pressed="${activeMoves(state.open).length > 0}"`)
     + `<p class="menu-note">Al activar una herramienta te pide su permiso. Brilla encima del mensaje: tócala ahí para apagarla.</p>`;
 }
 function setMenu(open) {
@@ -1955,6 +1980,34 @@ async function runSeqTest(sheet, agentId) {
   verdict.textContent = v + ' ' + v4; verdict.hidden = false;
   btn.disabled = false; btn.textContent = 'Probar otra vez';
 }
+function toggleMove(k, quiet) {
+  const id = state.open; if (!id || !MOVES[k]) return;
+  const mv = { ...(cfg(id).moves || {}) }; mv[k] = !mv[k];
+  setCfg(id, { moves: mv });
+  renderToolRow(); renderMenu();
+  if (!quiet) toast(mv[k] ? `${MOVES[k].name} activado` : `${MOVES[k].name} quitado`);
+}
+function openMovesPicker() {
+  const id = state.open; if (!id) return;
+  const rows = () => MOVE_ORDER.map(k => {
+    const on = !!(cfg(id).moves || {})[k];
+    return `<button type="button" class="opt mvopt" role="checkbox" aria-checked="${on}" data-move="${k}" style="--th:${MOVES[k].hue}"><span class="s-badge mv">${I['mv_' + k]}</span><span class="opt-name">${MOVES[k].name}</span><span class="opt-state">${on ? 'Activo' : 'Elegir'}</span><span class="opt-desc">${MOVES[k].desc}</span></button>`;
+  }).join('');
+  openSheet(`<div class="sheet-head"><button class="icon-btn" type="button" data-close aria-label="Volver"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button><h3>Opciones</h3><button class="btn primary" type="button" data-close>Listo</button></div>
+    <div class="sheet-body">
+      <p class="opt-head">Elige qué tipo de acción escribe ${esc(agentById(id)?.name || 'el agente')}. Puedes combinarlas: van en un solo bloque, en orden debunkeo, defensa y ataque. Quedan brillando encima del mensaje hasta que las quites.</p>
+      <div class="opt-group" id="mvGroup" role="group" aria-label="Tipos de acción">${rows()}</div>
+      <div class="opt-group"><button type="button" class="opt" data-move="none"><span class="s-badge">–</span><span class="opt-name">Ninguna</span><span class="opt-state"></span><span class="opt-desc">El agente escribe lo que le pidas, sin tipo fijo.</span></button></div>
+    </div>`, sheet => {
+    sheet.addEventListener('click', e => {
+      const b = e.target.closest('[data-move]'); if (!b) return;
+      const k = b.dataset.move;
+      if (k === 'none') { setCfg(id, { moves: {} }); renderToolRow(); renderMenu(); closeSheet(); toast('Sin tipo de acción'); return; }
+      toggleMove(k, true);
+      $('#mvGroup', sheet).innerHTML = rows();
+    });
+  });
+}
 function openSeqPicker() {
   const id = state.open; if (!id) return;
   const on = !!(cfg(id).tools || {}).seq;
@@ -2004,8 +2057,10 @@ function renderToolRow() {
   const row = $('#toolRow'); if (!row) return;
   const id = state.open;
   const on = id ? activeTools(id) : [];
-  row.hidden = !on.length;
-  row.innerHTML = on.map(k => {
+  const mv = id ? activeMoves(id) : [];
+  row.hidden = !on.length && !mv.length;
+  $('#input').placeholder = mv.length ? 'Pega el ataque del rival o di la jugada' : 'Mensaje';
+  row.innerHTML = mv.map(k => `<button type="button" class="tchip" style="--th:${MOVES[k].hue}" data-move-off="${k}" aria-label="Quitar ${MOVES[k].name}" title="Toca para quitar">${I['mv_' + k]}${MOVES[k].name}<span class="off">${I.x}</span></button>`).join('') + on.map(k => {
     const st = toolState(k);
     const bad = st !== 'ok' && st !== 'checking';
     return `<button type="button" class="tchip ${bad ? 'dim' : ''}" style="--th:${TOOLS[k].hue}" data-tool-off="${k}" aria-label="Apagar ${TOOLS[k].name}" title="Toca para apagar">${I[TOOLS[k].icon]}${esc(toolLabel(id, k))}${bad ? ` · ${stateLabel(st)}` : ''}<span class="off">${I.x}</span></button>`;
@@ -2400,9 +2455,12 @@ $('#attachMenu').addEventListener('click', e => {
     setMenu(false); fi.click(); return;
   }
   setMenu(false);
-  if (k === 'seq') openSeqPicker(); else toggleTool(k);
+  if (k === 'seq') openSeqPicker(); else if (k === 'opts') openMovesPicker(); else toggleTool(k);
 });
-$('#toolRow').addEventListener('click', e => { const b = e.target.closest('[data-tool-off]'); if (b) toggleTool(b.dataset.toolOff); });
+$('#toolRow').addEventListener('click', e => {
+  const m = e.target.closest('[data-move-off]'); if (m) return toggleMove(m.dataset.moveOff);
+  const b = e.target.closest('[data-tool-off]'); if (b) toggleTool(b.dataset.toolOff);
+});
 document.addEventListener('click', e => {
   const menu = $('#attachMenu');
   if (!menu.hidden && !menu.contains(e.target) && !e.target.closest('#btnClip')) setMenu(false);
