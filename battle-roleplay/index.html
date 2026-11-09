@@ -496,6 +496,10 @@ textarea.big { min-height: 260px; font-size: 14px; }
           <div><strong>Memoria compartida</strong><p>Cada agente ve lo último que escribiste en los otros chats.</p></div>
           <label class="switch"><span class="vh">Memoria compartida</span><input type="checkbox" id="g-memoria"><i></i></label>
         </div>
+        <div class="switch-row" style="margin-top:-17px">
+          <div><strong>Internet pasivo</strong><p>Los agentes buscan en internet solo cuando les falta un dato. Usa tu conector Parallel Search.</p></div>
+          <label class="switch"><span class="vh">Internet pasivo</span><input type="checkbox" id="g-internet"><i></i></label>
+        </div>
         <details class="rules">
           <summary>Reglas que siguen todos los agentes</summary>
           <ul id="rulesList"></ul>
@@ -734,6 +738,7 @@ const I = {
   lock: SVG('<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'),
   x: SVG('<path d="M6 6l12 12M18 6 6 18"/>', 'style="width:14px;height:14px"'),
   close: SVG('<path d="M6 6l12 12M18 6 6 18"/>'),
+  web: SVG('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>'),
   trash: SVG('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
   doc: SVG('<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/>'),
   img: SVG('<rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="m20.5 16-5-5-8 8"/>'),
@@ -840,6 +845,7 @@ const SEQ_LEVELS = {
 const TOOLS = {
   seq: { name: 'Sequential Thinking', server: 'Sequential Thinking', hue: 196, icon: 'seq' },
   wiki: { name: 'Superpower Wiki', server: 'Superpower wiki', hue: 30, icon: 'wiki' },
+  web: { name: 'Internet', server: 'Parallel Search', hue: 150, icon: 'web' },
 };
 
 const DEFAULT_GUSTOS = {
@@ -850,6 +856,7 @@ const DEFAULT_GUSTOS = {
   odio: 'Relleno y preámbulos tipo "claro, aquí tienes", auto-nerfeos, viñetas o secciones dentro de las acciones, prosa solemne o palabras rebuscadas, que me cambien la jugada o le bajen algo.',
   notas: '',
   memoria: true,
+  internet: true,
 };
 const BUILTIN = [
   { id: 'guia-1', name: 'Guía BR 1 · Tipos de BR y cómo empezar', el: 'guide-1', scope: 'all' },
@@ -907,17 +914,19 @@ use('assets').then(a => { assets = a; });
 let mcp = null;
 let perms = null;
 use('permissions').then(p => { perms = p; });
-const toolAvail = { seq: 'checking', wiki: 'checking' };
+const toolAvail = { seq: 'checking', wiki: 'checking', web: 'checking' };
+const WEB_SESSION = (() => { try { return [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, '0')).join(''); } catch { return (rid() + rid() + rid() + rid()).slice(0, 40); } })();
+const hostOf = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return String(u).slice(0, 40); } };
 const mcpReady = use('mcp').then(async m => {
   mcp = m;
-  if (!m) { toolAvail.seq = toolAvail.wiki = 'noview'; return; }
+  if (!m) { toolAvail.seq = toolAvail.wiki = toolAvail.web = 'noview'; return; }
   try {
     const { servers } = await m.listTools();
     for (const k of Object.keys(TOOLS)) {
       const sv = servers.find(x => x.server === TOOLS[k].server);
       toolAvail[k] = !sv || !sv.tools?.length ? 'missing' : sv.authStatus === 'needs_reauth' ? 'reauth' : 'ok';
     }
-  } catch { toolAvail.seq = toolAvail.wiki = 'ok'; }
+  } catch { toolAvail.seq = toolAvail.wiki = toolAvail.web = 'ok'; }
 }).finally(() => { renderToolRow(); renderMenu(); });
 function toolState(k) {
   if (sampleLimits && !sampleLimits.tools) return 'noview';
@@ -1150,13 +1159,15 @@ function bubble(m, first, a) {
 }
 const activityHTML = act => `<div class="activity" style="--th:${TOOLS[act.kind].hue}">${I[TOOLS[act.kind].icon]}<span>${esc(act.label)}</span></div>`;
 function traceHTML(m) {
-  const st = m.steps || [], src = m.sources || [];
-  if (!st.length && !src.length) return '';
+  const st = m.steps || [], src = m.sources || [], wb = m.web || [];
+  if (!st.length && !src.length && !wb.length) return '';
+  const nq = wb.filter(w => w.kind === 'search').length;
   const live = !!m.pending;
-  const sum = [st.length ? `${live ? 'pensando · ' : 'pensó en '}${st.length} paso${st.length > 1 ? 's' : ''}` : '', src.length ? `consultó ${src.length} página${src.length > 1 ? 's' : ''} de la wiki` : ''].filter(Boolean).join(' · ');
+  const sum = [st.length ? `${live ? 'pensando · ' : 'pensó en '}${st.length} paso${st.length > 1 ? 's' : ''}` : '', src.length ? `consultó ${src.length} página${src.length > 1 ? 's' : ''} de la wiki` : '', nq ? `buscó en internet ${nq} ${nq > 1 ? 'veces' : 'vez'}` : ''].filter(Boolean).join(' · ');
   return `<details class="trace${live ? ' live' : ''}" ${live ? 'open' : ''}><summary>${sum.charAt(0).toUpperCase() + sum.slice(1)}${live ? '' : ' · toca para ver'}</summary>
     ${st.length ? `<ol>${st.map(t => `<li>${esc(t)}</li>`).join('')}</ol>` : ''}
-    ${src.length ? `<ul>${src.map(t => `<li><a href="https://powerlisting.fandom.com/wiki/${encodeURIComponent(t.replace(/ /g, '_'))}" target="_blank" rel="noopener">${esc(t)}</a></li>`).join('')}</ul>` : ''}</details>`;
+    ${src.length ? `<ul>${src.map(t => `<li><a href="https://powerlisting.fandom.com/wiki/${encodeURIComponent(t.replace(/ /g, '_'))}" target="_blank" rel="noopener">${esc(t)}</a></li>`).join('')}</ul>` : ''}
+    ${wb.length ? `<ul>${wb.map(w => w.kind === 'search' ? `<li>Buscó: ${esc(w.q)}</li>` : `<li>Leyó: <a href="${esc(w.url)}" target="_blank" rel="noopener">${esc(hostOf(w.url))}</a></li>`).join('')}</ul>` : ''}</details>`;
 }
 function agentInner(m, c) {
   if (m.pending && !m.text) return traceHTML(m) + (m.activity ? activityHTML(m.activity) : `<span class="typing-dots" aria-label="escribiendo"><i></i><i></i><i></i></span>`);
@@ -1385,10 +1396,15 @@ async function generate(agentId, images) {
   try {
     /* with tools on: a helper thinks first (Sequential Thinking / wiki), then this agent writes with its full prompt plus those notes */
     let notes = null;
-    if (kinds.length) {
-      notes = await prethink(sample, agentId, kinds, reply, ctl.signal, markRead);
-      reply.activity = { kind: kinds.includes('seq') ? 'seq' : 'wiki', label: `${a.name} escribe con lo pensado…` };
-      streamUpdate(agentId, reply);
+    let useWeb = state.profile.gustos.internet !== false;
+    if (useWeb) { await mcpReady; const st = toolState('web'); useWeb = st === 'ok' || st === 'checking'; }
+    const helperKinds = useWeb ? [...kinds, 'web'] : kinds;
+    if (helperKinds.length) {
+      notes = await prethink(sample, agentId, helperKinds, reply, ctl.signal, markRead);
+      if (notes) {
+        reply.activity = { kind: kinds.includes('seq') ? 'seq' : kinds.includes('wiki') ? 'wiki' : 'web', label: `${a.name} escribe con lo encontrado…` };
+        streamUpdate(agentId, reply);
+      }
     }
     const turns = buildTurns(a, reply.id, [], false);
     if (notes) turns.push({ role: 'user', content: notes });
@@ -1426,19 +1442,27 @@ async function generate(agentId, images) {
 async function prethink(sample, agentId, kinds, reply, signal, markRead) {
   const last = [...chatOf(agentId)].reverse().find(m => m.role === 'user');
   const msg = (last ? msgContent(last) : '').slice(0, 6000) || '(mensaje vacío)';
-  const seq = kinds.includes('seq'), wiki = kinds.includes('wiki');
+  const seq = kinds.includes('seq'), wiki = kinds.includes('wiki'), web = kinds.includes('web');
   const lv = seqLevel(agentId), L = SEQ_LEVELS[lv];
   const tools = buildTools(kinds, reply, agentId, markRead);
   const ask = [];
   if (seq) ask.push(`Usa la herramienta ${L.tool} al menos ${L.min} veces (thoughtNumber 1, 2, 3…, nextThoughtNeeded false en el último)${lv === 'high' || lv === 'max' ? ', con al menos un camino alternativo (branchFromThought y branchId)' : ''}${lv === 'max' ? ' y revisando al menos un paso anterior (isRevision y revisesThought)' : ''} para pensar cómo responder este mensaje de un jugador de battle rol.`);
   if (wiki) ask.push(`${seq ? 'Si' : 'Para responder este mensaje de un jugador de battle rol, si'} algún poder o habilidad necesita respaldo, búscalo con search_powerlisting y léelo con get_page (máximo 2 búsquedas).`);
-  reply.activity = { kind: seq ? 'seq' : 'wiki', label: seq ? `Sequential Thinking ${L.short} · empezando a pensar…` : 'Superpower Wiki · revisando…' };
+  if (web) ask.push(`${seq || wiki ? 'Además, si' : 'Para responder este mensaje de un jugador de battle rol: si'} hace falta un dato que no sabes con seguridad (un personaje, una habilidad, lore, una serie o juego, algo reciente), búscalo en internet con web_search; usa web_fetch solo si los extractos no alcanzan (máximo 2 búsquedas y 1 lectura). Si no hace falta, no busques.`);
+  reply.activity = { kind: seq ? 'seq' : wiki ? 'wiki' : 'web', label: seq ? `Sequential Thinking ${L.short} · empezando a pensar…` : wiki ? 'Superpower Wiki · revisando…' : 'Internet · viendo si hace falta buscar…' };
   streamUpdate(agentId, reply);
-  const res = await sample(`App Battle roleplay, paso previo antes de responder. ${ask.join(' ')} Mensaje: "${msg}". Después escribe en 2 a 4 líneas la conclusión${wiki ? ' y lo que encontraste en la wiki' : ''}.`, { cache: false, signal, tools, modelTier: 'quick' });
+  const onlyWeb = web && !seq && !wiki;
+  const res = await sample(`App Battle roleplay, paso previo antes de responder. ${ask.join(' ')} Mensaje: "${msg}". Después escribe en 2 a 6 líneas la conclusión${wiki ? ', lo que encontraste en la wiki' : ''}${web ? ' y lo que encontraste en internet con sus fuentes' : ''}.${onlyWeb ? ' Si no hizo falta buscar, responde solo: NO.' : ''}`, { cache: false, signal, tools, modelTier: 'quick' });
+  const usedWeb = (reply.web || []).length > 0;
+  if (onlyWeb && !usedWeb) { reply.activity = null; return null; }
   const parts = [];
   if (reply.steps.length) parts.push(`Pasos pensados con Sequential Thinking (${L.label}):\n` + reply.steps.map((t, i) => `${i + 1}. ${t}`).join('\n'));
   if (reply.sources.length) parts.push('Páginas leídas en la Superpower Wiki: ' + reply.sources.join(', '));
-  const concl = res.text.trim();
+  if (usedWeb) {
+    const qs = reply.web.filter(w => w.kind === 'search').map(w => w.q), pg = reply.web.filter(w => w.kind === 'page').map(w => w.url);
+    parts.push(`Se buscó en internet${qs.length ? ': ' + qs.join('; ') : ''}${pg.length ? '\nPáginas leídas: ' + pg.join(', ') : ''}`);
+  }
+  const concl = res.text.trim().replace(/^NO\.?$/i, '');
   if (concl) parts.push('Conclusión: ' + concl.slice(0, 1500));
   return `Notas que otro agente ya pensó para este mensaje:\n${parts.join('\n\n')}\nÚsalas para responder el mensaje anterior.`;
 }
@@ -1509,6 +1533,44 @@ function buildTools(kinds, reply, agentId, onToolStart, lvOverride = null) {
         reply.steps.push(args.thought.slice(0, 700));
         setActivity(agentId, reply, 'seq', `Sequential Thinking ${L.short} · paso ${args.thoughtNumber} de ${args.totalThoughts}${tag}`);
         return callConnector('seq', L.tool, args, signal, reply, 3000, false);
+      },
+    });
+  }
+  if (kinds.includes('web')) {
+    reply.web = [];
+    T.push({
+      name: 'web_search',
+      description: 'Internet (Parallel Search): busca en la web y devuelve resultados con extractos que normalmente alcanzan para responder. Úsalo solo si falta un dato que no sabes con seguridad.',
+      inputSchema: { type: 'object', properties: {
+        objective: { type: 'string', description: 'Qué quieres encontrar, en una frase' },
+        search_queries: { type: 'array', items: { type: 'string' }, description: '2 o 3 búsquedas cortas de 3 a 6 palabras' },
+      }, required: ['objective', 'search_queries'] },
+      execute: async (input, { signal }) => {
+        onToolStart();
+        const q = (Array.isArray(input.search_queries) ? input.search_queries : [input.search_queries]).map(x => String(x || '').slice(0, 80)).filter(Boolean).slice(0, 4);
+        const objective = String(input.objective || q[0] || '').slice(0, 300);
+        if (!q.length) q.push(objective.slice(0, 60));
+        reply.web.push({ kind: 'search', q: q[0] });
+        setActivity(agentId, reply, 'web', `Internet · buscando "${q[0]}"`);
+        return callConnector('web', 'web_search', { objective, search_queries: q, session_id: WEB_SESSION }, signal, reply, 9000, false);
+      },
+    });
+    T.push({
+      name: 'web_fetch',
+      description: 'Internet (Parallel Search): lee páginas web concretas y devuelve lo relevante. Úsalo solo si los extractos de web_search no alcanzan.',
+      inputSchema: { type: 'object', properties: {
+        urls: { type: 'array', items: { type: 'string' }, description: 'Hasta 3 URLs http(s)' },
+        objective: { type: 'string', description: 'Qué buscas en esas páginas' },
+      }, required: ['urls'] },
+      execute: async (input, { signal }) => {
+        onToolStart();
+        const urls = (Array.isArray(input.urls) ? input.urls : [input.urls]).map(u => String(u || '')).filter(u => /^https?:\/\//.test(u)).slice(0, 3);
+        if (!urls.length) throw new Error('Pasa al menos una URL que empiece con http o https.');
+        urls.forEach(url => reply.web.push({ kind: 'page', url }));
+        setActivity(agentId, reply, 'web', `Internet · leyendo ${hostOf(urls[0])}`);
+        const args = { urls, session_id: WEB_SESSION };
+        if (input.objective) args.objective = String(input.objective).slice(0, 200);
+        return callConnector('web', 'web_fetch', args, signal, reply, 12000, false);
       },
     });
   }
@@ -1902,10 +1964,17 @@ function renderGustos() {
   const g = state.profile.gustos;
   for (const k of GF) { const el = $('#g-' + k); if (document.activeElement !== el) el.value = g[k] || ''; }
   $('#g-memoria').checked = !!g.memoria;
+  $('#g-internet').checked = g.internet !== false;
 }
 $('#rulesList').innerHTML = RULES.map(r => `<li>${esc(r)}</li>`).join('');
 for (const k of GF) $('#g-' + k).addEventListener('input', e => { state.profile.gustos[k] = e.target.value; saveProfile(); });
 $('#g-memoria').addEventListener('change', e => { state.profile.gustos.memoria = e.target.checked; saveProfile(); });
+$('#g-internet').addEventListener('change', async e => {
+  state.profile.gustos.internet = e.target.checked; saveProfile();
+  if (!e.target.checked) return toast('Internet pasivo apagado');
+  toast('Internet pasivo activado');
+  if (perms) { try { const name = 'mcp:' + TOOLS.web.server; const r = (await perms.request([name]))[name]; if (r === 'denied') toast(TOOL_STATE_COPY.denied(TOOLS.web.name)); } catch {} }
+});
 
 /* ---------------- sheet + toast ---------------- */
 let lastFocus = null;
