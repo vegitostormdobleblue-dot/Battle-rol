@@ -344,6 +344,13 @@ textarea.inp { resize: vertical; min-height: 84px; line-height: 1.45; }
 .cbox .icon-btn { width: 40px; height: 40px; color: var(--meta); }
 .send { width: 48px; height: 48px; border-radius: 50%; flex: none; display: grid; place-items: center; background: var(--accent-fill); color: var(--on-accent); }
 .send:disabled { opacity: .55; cursor: default; }
+.model-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 0 var(--gr) 10px var(--gl); margin-top: -2px; }
+.mpick { position: relative; display: inline-flex; }
+.mpick select { appearance: none; -webkit-appearance: none; border: 1px solid var(--line); background: var(--in); color: var(--fg); border-radius: 14px; padding: 5px 26px 5px 10px; font-size: 12.5px; font-weight: 600; cursor: pointer; box-shadow: var(--shadow); }
+.mpick select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mpick::after { content: ""; position: absolute; right: 11px; top: 50%; width: 6px; height: 6px; border-right: 1.5px solid var(--fg-2); border-bottom: 1.5px solid var(--fg-2); transform: translateY(-70%) rotate(45deg); pointer-events: none; }
+.limit-note { margin-left: auto; font-size: 11.5px; color: var(--meta); font-variant-numeric: tabular-nums; }
+.meta .mlabel { font-weight: 600; }
 .limit-pill { font-size: 11.5px; color: var(--meta); padding: 0 var(--gr) 0 var(--gl); text-align: right; margin-top: -4px; font-variant-numeric: tabular-nums; }
 .dropping .wall::after { content: "Suelta el archivo para adjuntarlo"; position: absolute; inset: 12px; border: 2px dashed var(--accent); border-radius: 14px; display: grid; place-items: center; font-weight: 600; color: var(--accent); background: color-mix(in srgb, var(--chat-bg) 80%, transparent); }
 
@@ -586,7 +593,11 @@ textarea.big { min-height: 260px; font-size: 14px; }
         </div>
         <button class="send" id="btnSend" type="submit" aria-label="Enviar"></button>
       </form>
-      <div class="limit-pill" id="limitPill" hidden></div>
+      <div class="model-bar" id="modelBar">
+        <label class="mpick"><span class="vh">Modelo</span><select id="selModel"><option value="opus">Opus 5.5</option><option value="sonnet">Sonnet 5.5</option><option value="haiku">Haiku 5.5</option></select></label>
+        <label class="mpick"><span class="vh">Esfuerzo</span><select id="selEffort"><option value="high">Esfuerzo alto</option><option value="medium">Esfuerzo medio</option><option value="low">Esfuerzo bajo</option></select></label>
+        <span class="limit-note" id="limitPill"></span>
+      </div>
       <input type="file" id="fileInput" multiple hidden>
       <aside class="drawer" id="drawer" hidden aria-label="Ajustes del chat">
         <div class="drawer-head">
@@ -884,6 +895,15 @@ const BASE = [
     suggest: ['Dame opciones para responder a esto: ', '¿Cómo empato su nivel sin solo defender?', 'Ideas para usar mi ficha de otra forma'] },
 ];
 const HUES = [158, 222, 268, 32, 356, 192, 95, 318, 12, 48, 245, 290];
+const MODELS = {
+  opus: { id: 'claude-opus-5-5', name: 'Opus 5.5', tier: 'complex' },
+  sonnet: { id: 'claude-sonnet-5-5', name: 'Sonnet 5.5', tier: 'default' },
+  haiku: { id: 'claude-haiku-5-5', name: 'Haiku 5.5', tier: 'quick' },
+};
+const EFFORTS = { high: 'alto', medium: 'medio', low: 'bajo' };
+function modelKey(id) { const c = cfg(id); if (MODELS[c.model]) return c.model; return c.tier === 'complex' ? 'opus' : c.tier === 'quick' ? 'haiku' : 'sonnet'; }
+function effortKey(id) { const e = cfg(id).effort; return EFFORTS[e] ? e : 'medium'; }
+function modelOpts(id) { const k = modelKey(id); return { model: MODELS[k].id, modelTier: MODELS[k].tier, effort: effortKey(id) }; }
 const MOVES = {
   deb: { name: 'Debunkear', hue: 280, desc: 'Desarma las falacias, contradicciones y auto-nerfeos del ataque del rival.',
     prompt: 'DEBUNKEAR: desarma el texto del rival. Cita sus palabras exactas, di qué tipo de falla es (auto-referencia circular, conceptual común ignorado, inflación sin escala, tipo contra tipo equivocado, temporalidad imposible, omnisciencia narrativa, ad hoc, contradicción o auto-nerfeo), explica por qué no funciona y respáldalo con un principio, una analogía o lo que el personaje del usuario ya hizo. Abre con la refutación, nunca con reconocimiento, y no inventes lore del rival.' },
@@ -1224,9 +1244,9 @@ function renderHead() {
   const btn = $('#btnSend');
   btn.innerHTML = busy ? I.stop : I.send;
   btn.setAttribute('aria-label', busy ? 'Detener respuesta' : 'Enviar');
-  const lp = $('#limitPill');
-  lp.hidden = !(c.limit > 0);
-  lp.textContent = c.limit > 0 ? `Límite del chat: ${nf.format(c.limit)} caracteres` : '';
+  $('#selModel').value = modelKey(a.id);
+  $('#selEffort').value = effortKey(a.id);
+  $('#limitPill').textContent = c.limit > 0 ? `Límite: ${nf.format(c.limit)} car.` : '';
 }
 function bubble(m, first, a) {
   const c = cfg(a.id);
@@ -1270,7 +1290,7 @@ function agentInner(m, c) {
   if (!m.pending) tools.push(m.error && !m.text
     ? `<button class="mbtn del" type="button" data-del="${m.id}">${I.trash}Borrar</button>`
     : `<button class="mbtn del" type="button" data-del="${m.id}" data-confirm="delmsg" aria-label="Borrar mensaje">${I.trash}</button>`);
-  html += `<div class="meta">${tools.join('')}${m.text ? `<span class="count ${over ? 'over' : ''}">${nf.format(n)} car.</span>` : ''}<span>${hhmm(m.ts)}</span></div>`;
+  html += `<div class="meta">${tools.join('')}${m.model && m.text ? `<span class="mlabel">${esc(m.model)}</span>` : ''}${m.text ? `<span class="count ${over ? 'over' : ''}">${nf.format(n)} car.</span>` : ''}<span>${hhmm(m.ts)}</span></div>`;
   return html;
 }
 function renderChat(jump) {
@@ -1337,8 +1357,7 @@ function renderDrawer() {
       ${limits.map(([v, l]) => `<button type="button" class="pick" data-limit="${v}" aria-pressed="${c.limit === v}">${l}</button>`).join('')}
       <input class="inp" id="d-limit" type="number" min="0" step="100" inputmode="numeric" value="${c.limit || ''}" placeholder="Otro" style="width:110px"></div>
       <small>La app cuenta los caracteres de cada respuesta y marca en rojo si se pasa.</small></div>
-    <div class="field"><span>Profundidad</span><div class="seg" role="group" aria-label="Profundidad">
-      ${[['quick', 'Rápido'], ['default', 'Normal'], ['complex', 'Profundo']].map(([v, l]) => `<button type="button" data-tier="${v}" aria-pressed="${c.tier === v}">${l}</button>`).join('')}</div></div>
+    <div class="field"><span>Modelo y esfuerzo</span><small>Se eligen abajo del chat, debajo de la caja de escribir. Ahora: ${MODELS[modelKey(a.id)].name}, esfuerzo ${EFFORTS[effortKey(a.id)]}.</small></div>
     <label class="field"><span>Instrucciones para este chat</span><textarea class="inp" id="d-extra" rows="3" placeholder="Ej: el rival es dio con the world, no uses velocidad">${esc(c.extra)}</textarea></label>
     <div class="field"><span>Archivos que lee</span><div class="check-list">
       ${files.length ? files.map(f => `<label class="check"><input type="checkbox" data-fscope="${f.id}" ${reads(f, a.id) ? 'checked' : ''}><span>${esc(f.name)}</span></label>`).join('') : '<p class="empty-note">Todavía no hay archivos.</p>'}
@@ -1452,7 +1471,7 @@ const ERR = {
   rate_limited: 'Muchos mensajes seguidos o llegaste a tu límite de uso. Espera un rato y toca Reintentar.',
   session_expired: 'Tu sesión expiró. Vuelve a iniciar sesión en claude.ai y toca Reintentar.',
   image_rejected: 'Esa imagen no se pudo enviar por su tipo o tamaño. Prueba con un JPG o PNG más chico.',
-  images_unavailable: 'Esta vista no puede mandar imágenes a los agentes. Manda solo texto.',
+  images_unavailable: 'claude.ai no deja mandar fotos a los agentes desde esta vista. Prueba abriendo el artefacto en el navegador, o manda solo texto.',
   prompt_too_large: 'El chat y los archivos son demasiado largos. Desactiva algunos archivos o vacía el chat.',
   empty_completion: 'El agente no escribió nada. Cambia un poco el mensaje y reenvíalo.',
   tools_unavailable: 'Esta vista no puede usar herramientas. Apágalas tocando su chip y reenvía.',
@@ -1506,7 +1525,7 @@ async function generate(agentId, images, opts = {}) {
     const turns = buildTurns(a, reply.id, [], false);
     if (notes) turns.push({ role: 'user', content: notes });
     const res = await sample(turns, {
-      cache: false, signal: ctl.signal, modelTier: cfg(agentId).tier || 'default',
+      cache: false, signal: ctl.signal, ...modelOpts(agentId),
       ...(images?.length ? { images } : {}),
       onText: ({ text }) => {
         reply.text = text.replace(/^\s+/, '');
@@ -1516,6 +1535,7 @@ async function generate(agentId, images, opts = {}) {
       },
     });
     reply.text = res.text.trim();
+    reply.model = `${res.modelApplied ? MODELS[modelKey(agentId)].name : 'Modelo por defecto'} · ${EFFORTS[effortKey(agentId)]}`;
     if (res.truncated) reply.note = 'Se cortó por largo. Escríbele "sigue" para que termine.';
   } catch (e) {
     const code = e?.code || 'upstream_error';
@@ -1802,19 +1822,34 @@ function saveEdit() {
 /* ---------------- attachments ---------------- */
 const TEXT_EXT = /\.(txt|md|markdown|json|csv|log|html?)$/i;
 function refreshAccept() {
-  const imgs = sampleLimits?.images?.mediaTypes || [];
-  $('#fileInput').accept = ['.txt', '.md', '.markdown', '.json', '.csv', '.log', 'text/plain', 'text/markdown', ...imgs].join(',');
+  $('#fileInput').accept = ['.txt', '.md', '.markdown', '.json', '.csv', '.log', 'text/plain', 'text/markdown', 'image/*'].join(',');
+}
+const IMG_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+/* photos: keep small supported files as they are; otherwise decode, shrink to 1600px and re-encode as JPEG */
+async function prepImage(f) {
+  const types = sampleLimits?.images?.mediaTypes || IMG_TYPES;
+  if (types.includes(f.type) && f.size <= 1.5e6) return f;
+  const url = URL.createObjectURL(f);
+  try {
+    const img = await new Promise((ok, bad) => { const im = new Image(); im.onload = () => ok(im); im.onerror = bad; im.src = url; });
+    const scale = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+    const cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.round(img.naturalWidth * scale)); cv.height = Math.max(1, Math.round(img.naturalHeight * scale));
+    cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+    const blob = await new Promise(ok => cv.toBlob(ok, 'image/jpeg', 0.85));
+    if (!blob) throw new Error('encode');
+    return new File([blob], f.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+  } finally { URL.revokeObjectURL(url); }
 }
 refreshAccept();
 async function addAttachments(fileList) {
   for (const f of fileList) {
-    if (f.type.startsWith('image/')) {
-      const ok = sampleLimits?.images;
-      if (!ok) { toast('Esta vista no puede mandar imágenes a los agentes.'); continue; }
-      if (!ok.mediaTypes.includes(f.type)) { toast(`${f.name}: usa JPG, PNG, WebP o GIF.`); continue; }
-      if (f.size > ok.maxInputBytes) { toast(`${f.name} pesa demasiado.`); continue; }
-      if (state.pending.filter(p => p.kind === 'image').length >= ok.maxCount) { toast(`Máximo ${ok.maxCount} imágenes por mensaje.`); continue; }
-      state.pending.push({ id: rid(), name: f.name, kind: 'image', blob: f, local: URL.createObjectURL(f) });
+    if (f.type.startsWith('image/') || /\.(jpe?g|png|webp|gif|heic|heif|bmp)$/i.test(f.name)) {
+      const max = sampleLimits?.images?.maxCount || 4;
+      if (state.pending.filter(p => p.kind === 'image').length >= max) { toast(`Máximo ${max} fotos por mensaje.`); continue; }
+      let blob;
+      try { blob = await prepImage(f); } catch { toast(`${f.name}: no se pudo leer esa foto. Prueba con una JPG o PNG.`); continue; }
+      state.pending.push({ id: rid(), name: blob.name || f.name, kind: 'image', blob, local: URL.createObjectURL(blob) });
     } else if (f.type.startsWith('text/') || TEXT_EXT.test(f.name) || f.type === 'application/json') {
       let text = await f.text();
       if (text.length > 30000) { text = text.slice(0, 30000); toast(`${f.name} es largo: se mandan los primeros 30.000 caracteres. Para fichas largas usa Archivos.`); }
@@ -1834,7 +1869,7 @@ function stateLabel(st) { return st === 'missing' ? 'no conectado' : st === 'rea
 function renderMenu() {
   const menu = $('#attachMenu'); if (!menu || !state.open) return;
   const t = cfg(state.open).tools || {};
-  const canImg = !!sampleLimits?.images;
+  const canImg = !sampleLimits || !!sampleLimits.images;
   const item = (key, hue, icon, label, extra) => `<button type="button" class="menu-item" role="menuitem" data-menu="${key}" style="--mh:${hue}" ${extra || ''}><span class="mi">${I[icon]}</span>${label}</button>`;
   const toolItem = k => {
     const st = toolState(k);
@@ -1843,7 +1878,7 @@ function renderMenu() {
     return item(k, TOOLS[k].hue, TOOLS[k].icon, `${TOOLS[k].name}<small>${sub}</small>`, `role="menuitemcheckbox" aria-pressed="${!!t[k]}" ${off && !t[k] ? 'aria-disabled="true"' : ''}`);
   };
   menu.innerHTML = item('doc', 262, 'doc', 'Documento<small>.txt .md</small>')
-    + item('img', 330, 'img', `Imagen<small>${canImg ? 'jpg png' : 'no disponible'}</small>`, canImg ? '' : 'aria-disabled="true"')
+    + item('img', 330, 'img', `Fotos<small>${canImg ? 'galería o cámara' : 'puede fallar aquí'}</small>`)
     + toolItem('seq') + toolItem('wiki')
     + item('opts', 280, 'opts', `Opciones<small>${activeMoves(state.open).map(k => MOVES[k].name).join(' + ') || 'tipo de acción'}</small>`, `aria-pressed="${activeMoves(state.open).length > 0}"`)
     + `<p class="menu-note">Al activar una herramienta te pide su permiso. Brilla encima del mensaje: tócala ahí para apagarla.</p>`;
@@ -1934,7 +1969,7 @@ async function runSeqTest(sheet, agentId) {
     const fake = { steps: [], sources: [] };
     const tools = buildTools(['seq'], fake, '__test__', () => { used3++; }, 'low');
     try {
-      const res = await sample([{ role: 'user', content: buildSystem(a, ['seq'], false, 'low') }, { role: 'user', content: msg }], { cache: false, tools, modelTier: cfg(agentId).tier || 'default' });
+      const res = await sample([{ role: 'user', content: buildSystem(a, ['seq'], false, 'low') }, { role: 'user', content: msg }], { cache: false, tools, ...modelOpts(agentId) });
       r3 = 'ok';
       const said = plain(res.text).slice(-90);
       set(3, used3 ? 'ok' : 'warn', used3 ? `Funciona. Pensó ${fake.steps.length} pasos con Think low y respondió: "${said}"` : `El prompt pasó, pero el agente no usó la herramienta. Respondió: "${said}"`);
@@ -1959,7 +1994,7 @@ async function runSeqTest(sheet, agentId) {
           { role: 'user', content: buildSystem(a, [], false) },
           { role: 'user', content: msg },
           { role: 'user', content: `Notas que otro agente ya pensó con Sequential Thinking para este mensaje:\n${notes}\nÚsalas para responder el mensaje anterior.` },
-        ], { cache: false, modelTier: cfg(agentId).tier || 'default' });
+        ], { cache: false, ...modelOpts(agentId) });
         r4 = 'ok';
         set(4, 'ok', `Funciona. Pensó ${fake.steps.length} pasos y ${a.name} respondió: "${plain(res.text).slice(-90)}"`);
       }
@@ -2417,6 +2452,8 @@ $('#attachRow').addEventListener('click', e => {
   state.pending = state.pending.filter(p => p.id !== b.dataset.unpend); renderAttach();
 });
 $('#composer').addEventListener('submit', e => { e.preventDefault(); send(); });
+$('#selModel').addEventListener('change', e => { if (!state.open) return; setCfg(state.open, { model: e.target.value }); toast(`Modelo: ${MODELS[e.target.value].name}`); if (state.drawer) renderDrawer(); });
+$('#selEffort').addEventListener('change', e => { if (!state.open) return; setCfg(state.open, { effort: e.target.value }); toast(`Esfuerzo ${EFFORTS[e.target.value]}`); if (state.drawer) renderDrawer(); });
 $('#editBar').addEventListener('click', e => { if (e.target.closest('[data-edit-cancel]')) cancelEdit(); });
 document.addEventListener('mousedown', e => {
   if (e.target.closest('#btnSend, #btnClip, .tchip, .sugg, .keep-focus, #attachMenu .menu-item')) e.preventDefault();
@@ -2449,9 +2486,8 @@ $('#attachMenu').addEventListener('click', e => {
   const b = e.target.closest('[data-menu]'); if (!b) return;
   const k = b.dataset.menu;
   if (k === 'doc' || k === 'img') {
-    if (b.getAttribute('aria-disabled') === 'true') { toast('Esta vista no puede mandar imágenes a los agentes.'); return; }
     const fi = $('#fileInput');
-    fi.accept = k === 'img' ? (sampleLimits?.images?.mediaTypes || []).join(',') : '.txt,.md,.markdown,.json,.csv,.log,text/plain,text/markdown';
+    fi.accept = k === 'img' ? 'image/*' : '.txt,.md,.markdown,.json,.csv,.log,text/plain,text/markdown';
     setMenu(false); fi.click(); return;
   }
   setMenu(false);
