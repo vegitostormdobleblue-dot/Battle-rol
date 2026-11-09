@@ -1616,12 +1616,13 @@ function openSeqTest() {
   openSheet(`
     <div class="sheet-head"><button class="icon-btn" type="button" data-close aria-label="Cerrar">${I.close}</button><h3>Probar Sequential Thinking</h3><button class="btn primary" type="button" id="st-run">Probar</button></div>
     <div class="sheet-body">
-      <p class="sec-sub">Prueba Think low en tres partes para saber si lo que falla es la función o el prompt. Usa dos mensajes de tu uso de Claude.</p>
+      <p class="sec-sub">Prueba Think low en cuatro partes para saber si lo que falla es la función o el prompt. Usa cuatro mensajes de tu uso de Claude.</p>
       <label class="field"><span>Mensaje para la prueba 3</span><input class="inp" id="st-msg" value="Dime hola" placeholder="Escribe cualquier mensaje"><small>Cámbialo para probar distintos prompts con ${esc(a.name)}.</small></label>
       <ol class="tests">
         <li data-t="1" data-st="wait"><span class="dot"></span><div><b>1. La función del conector</b><p>La página llama a Think low dos veces, sin Claude.</p><p class="res"></p></div></li>
         <li data-t="2" data-st="wait"><span class="dot"></span><div><b>2. Claude con la herramienta y un prompt mínimo</b><p>Le pide a Claude usar Think low para pensar un saludo.</p><p class="res"></p></div></li>
         <li data-t="3" data-st="wait"><span class="dot"></span><div><b>3. Claude con el prompt completo de ${esc(a.name)}</b><p>Lo mismo que pasa en el chat, con Think low y tu mensaje.</p><p class="res"></p></div></li>
+        <li data-t="4" data-st="wait"><span class="dot"></span><div><b>4. Tu idea: uno piensa y ${esc(a.name)} escribe</b><p>Un agente con prompt mínimo piensa tu mensaje con Think low; ${esc(a.name)}, con su prompt completo, recibe esos pensamientos y responde.</p><p class="res"></p></div></li>
       </ol>
       <p class="verdict" id="st-verdict" hidden></p>
     </div>`, sheet => {
@@ -1634,7 +1635,7 @@ async function runSeqTest(sheet, agentId) {
   const set = (t, st, msg) => { const li = $(`[data-t="${t}"]`, sheet); if (!li) return; li.dataset.st = st; $('.res', li).textContent = msg || ''; };
   const short = r => { const v = r?.payload ?? (r?.content || []).map(b => b.text || '').join(' '); return String(typeof v === 'string' ? v : JSON.stringify(v)).replace(/\s+/g, ' ').slice(0, 140); };
   const sErr = e => e?.code === 'refused' ? 'Bloqueado por el filtro automático (refused).' : (ERR[e?.code] || `Falló (${e?.code || 'error desconocido'}).`);
-  [1, 2, 3].forEach(t => set(t, 'wait', ''));
+  [1, 2, 3, 4].forEach(t => set(t, 'wait', ''));
   const verdict = $('#st-verdict', sheet); verdict.hidden = true;
   let r1 = false, r2 = null, r3 = null, used3 = 0;
 
@@ -1673,6 +1674,34 @@ async function runSeqTest(sheet, agentId) {
     } catch (e) { r3 = e?.code || 'error'; set(3, 'fail', sErr(e)); }
   }
 
+  set(4, 'run', 'Probando…');
+  let r4 = null, phase = 'think';
+  if (!sample) { r4 = 'none'; set(4, 'fail', 'Claude no está disponible en esta vista.'); }
+  else {
+    const msg = $('#st-msg', sheet).value.trim() || 'Dime hola';
+    const fake = { steps: [], sources: [] };
+    const tools = buildTools(['seq'], fake, '__test__', () => {}, 'low');
+    try {
+      await sample(`Prueba técnica de la app Battle roleplay. Usa la herramienta think_low 2 veces para pensar cómo responder este mensaje de un jugador de battle rol: "${msg}". Después escribe solo: listo.`, { cache: false, tools, modelTier: 'quick' });
+      if (!fake.steps.length) { r4 = 'nothink'; set(4, 'warn', 'El agente que piensa no usó la herramienta, así que no hubo pensamientos que pasar.'); }
+      else {
+        phase = 'write';
+        set(4, 'run', `Pensó ${fake.steps.length} pasos. Ahora ${a.name} escribe con su prompt completo…`);
+        const notes = fake.steps.map((t, i) => `${i + 1}. ${t}`).join('\n');
+        const res = await sample([
+          { role: 'user', content: buildSystem(a, [], false) },
+          { role: 'user', content: msg },
+          { role: 'user', content: `Notas que otro agente ya pensó con Sequential Thinking para este mensaje:\n${notes}\nÚsalas para responder el mensaje anterior.` },
+        ], { cache: false, modelTier: cfg(agentId).tier || 'default' });
+        r4 = 'ok';
+        set(4, 'ok', `Funciona. Pensó ${fake.steps.length} pasos y ${a.name} respondió: "${plain(res.text).slice(-90)}"`);
+      }
+    } catch (e) {
+      r4 = e?.code || 'error';
+      set(4, 'fail', (phase === 'write' ? `Pensó ${fake.steps.length} pasos, pero ${a.name} se bloqueó al escribir: ` : 'Falló el agente que piensa: ') + sErr(e));
+    }
+  }
+
   let v;
   if (!r1) v = 'El problema es la función: la página no logra usar el conector Sequential Thinking (mira el motivo en la prueba 1).';
   else if (r2 !== 'ok' && r2 !== 'unused') v = r2 === 'refused' ? 'La función anda, pero hasta el prompt mínimo salió bloqueado. No es el prompt del agente.' : 'La función anda, pero Claude no pudo usarla desde la página (mira la prueba 2).';
@@ -1680,7 +1709,8 @@ async function runSeqTest(sheet, agentId) {
   else if (r3 !== 'ok') v = 'La función anda; la prueba 3 falló por otra razón (mira el detalle).';
   else if (!used3) v = 'La función anda y el prompt pasa, pero el agente decidió no usar la herramienta.';
   else v = 'Todo funciona en esta prueba: la función, la herramienta y el prompt.';
-  verdict.textContent = v; verdict.hidden = false;
+  const v4 = r4 === 'ok' ? 'Tu idea (prueba 4) funcionó.' : r4 === 'refused' ? (phase === 'write' ? 'Tu idea (prueba 4) no lo arregla: el agente que escribe igual se bloquea.' : 'En la prueba 4 se bloqueó el agente que piensa.') : r4 === 'nothink' ? 'En la prueba 4 no hubo pensamientos que pasar.' : 'La prueba 4 falló por otra razón (mira el detalle).';
+  verdict.textContent = v + ' ' + v4; verdict.hidden = false;
   btn.disabled = false; btn.textContent = 'Probar otra vez';
 }
 function openSeqPicker() {
