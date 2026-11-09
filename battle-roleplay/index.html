@@ -729,12 +729,12 @@ function patternUrl(glyph) {
 
 /* ---------------- what the agents know ---------------- */
 const RULES = [
-  'Entrega EXACTAMENTE lo que te pidió, nada más ni nada menos. Sin preámbulos tipo "claro, aquí tienes", sin repetir la pregunta, sin clases de teoría si pidió un texto.',
-  'El usuario manda la jugada: si dice el orden de los hechos, qué habilidades van, cómo se recibe el golpe o cómo queda su personaje, se escribe ASÍ. No la cuestiones, no la cambies, no le metas debunk ni contraataques que no pidió.',
-  'Nunca marques límites o debilidades del personaje del usuario si no pidió un análisis.',
+  'Entrega lo que pidió, en el formato que pidió. Sin preámbulos tipo "claro, aquí tienes", sin repetir la pregunta, sin explicar teoría si pidió un texto.',
+  'Respeta la jugada que pide: si dice el orden de los hechos, qué habilidades usa su personaje o cómo queda, escríbelo así, sin cambiarlo ni agregar debunks o contraataques que no pidió.',
+  'No le agregues debilidades a su personaje que no estén en su ficha, salvo que pida un análisis.',
   'Si el pedido es ambiguo, haz UNA pregunta corta (largo o formato) y nada más.',
   'La ficha es la base, no una jaula: puedes combinar y extender habilidades que SÍ están escritas, nunca inventar una que no existe. Si el usuario ordena un uso, se refuerza su respaldo, nunca se cambia.',
-  'Resultado siempre abierto: describe lo que hace su personaje y hasta dónde llega, pero NUNCA declares qué le pasa al rival al final ni escribas su reacción (nada de mano negra).',
+  'Resultado abierto: describe lo que hace su personaje y hasta dónde llega, pero no decidas cómo termina el rival ni escribas su reacción; eso lo escribe el otro jugador (nada de mano negra).',
   'No repitas el truco del turno anterior. Toda acción pega de verdad, no solo defiende, salvo que pida solo defensa o esquive.',
   'En devoluciones o counters, el daño y el alcance salen del texto del rival. Escalón de más por el eje correcto: mismo tipo de daño más una capa que el rival no puede sostener.',
   'Toda mejora es buff o parche de respaldo, nunca nerf. No le bajes nada a lo que el texto ya reclama.',
@@ -812,7 +812,7 @@ const DEFAULT_GUSTOS = {
 };
 const BUILTIN = [
   { id: 'guia-1', name: 'Guía BR 1 · Tipos de BR y cómo empezar', el: 'guide-1', scope: 'all' },
-  { id: 'guia-2', name: 'Guía BR 2 · Física para BR', el: 'guide-2', scope: ['argumentativo', 'unlimited', 'debunk', 'estratega'] },
+  { id: 'guia-2', name: 'Guía BR 2 · Física para BR', el: 'guide-2', scope: ['argumentativo'] },
   { id: 'guia-3', name: 'Guía BR 3 · Argumentativo y platonismo', el: 'guide-3', scope: ['argumentativo', 'unlimited', 'debunk', 'escalas', 'estratega'] },
   { id: 'guia-4', name: 'Guía BR 4 · Neoplatonismo aplicado', el: 'guide-4', scope: ['argumentativo', 'unlimited', 'escalas'] },
 ].map(f => ({ ...f, builtin: true, text: (document.getElementById(f.el)?.textContent || '').trim() }));
@@ -864,6 +864,8 @@ let assets = null;
 use('assets').then(a => { assets = a; });
 /* connectors: Sequential Thinking + Superpower Wiki, reached through the viewer's own claude.ai connectors */
 let mcp = null;
+let perms = null;
+use('permissions').then(p => { perms = p; });
 const toolAvail = { seq: 'checking', wiki: 'checking' };
 const mcpReady = use('mcp').then(async m => {
   mcp = m;
@@ -1204,6 +1206,8 @@ function renderDrawer() {
     <div class="field"><span>Herramientas</span>
       ${Object.keys(TOOLS).map(k => `<div class="switch-row" style="margin:0;border-bottom:0"><div><strong>${TOOLS[k].name}</strong><p>${k === 'seq' ? 'Piensa la jugada en pasos antes de responder.' : 'Busca poderes y habilidades en powerlisting.fandom.com.'}</p></div>
         <label class="switch"><span class="vh">${TOOLS[k].name}</span><input type="checkbox" data-tool-switch="${k}" ${(c.tools || {})[k] ? 'checked' : ''}><i></i></label></div>`).join('')}
+      <button class="btn" type="button" data-perms style="justify-self:start;margin-top:8px">Ver permisos de la página</button>
+      <small>Cada herramienta pide su permiso la primera vez que la activas. Superpower Wiki necesita estar conectado en claude.ai › Ajustes › Conectores.</small>
     </div>
     <div class="field"><span>Color del chat</span><div class="swatches">
       ${HUES.map(h => `<button type="button" class="sw" style="--sh:${h}" data-hue="${h}" aria-label="Color ${h}" aria-pressed="${hueOf(a) === h}"></button>`).join('')}</div></div>
@@ -1223,11 +1227,12 @@ function setFileScope(f, agentId, on) {
 }
 
 /* ---------------- prompt ---------------- */
-function buildSystem(a, kinds = []) {
+function buildSystem(a, kinds = [], light = false) {
   const g = state.profile.gustos;
   const c = cfg(a.id);
   const L = [];
-  L.push(`Eres "${a.name}", un agente de la app Battle roleplay: un chat de battle rol (BR) donde cada agente se encarga de una categoría. Respondes como un mensaje de chat a ${g.apodo || 'el usuario'}.`);
+  L.push(`Contexto: Battle roleplay es una app de escritura creativa para "battle rol" (BR), un juego de rol por texto donde jugadores enfrentan personajes de ficción (anime, series, juegos u OCs) con poderes inventados y se turnan escribiendo acciones. Todo es ficción narrativa entre jugadores.`);
+  L.push(`Eres "${a.name}", uno de los agentes de la app; cada agente se encarga de una categoría de BR. Respondes como un mensaje de chat a ${g.apodo || 'el usuario'}.`);
   L.push(`\nTU ESPECIALIDAD\n${a.role}`);
   if (a.custom && a.instr) L.push(`\nINSTRUCCIONES PROPIAS DE ESTE AGENTE (las escribió el usuario)\n${a.instr}`);
   if (a.fight) {
@@ -1236,7 +1241,7 @@ function buildSystem(a, kinds = []) {
       : `\nMODO REDACTOR\nEscribes las acciones del personaje del usuario${c.mine ? ` (${c.mine})` : ''} tal como te las ordene. Si pega el texto del rival${c.rival ? ` (${c.rival})` : ''}, sácale las aperturas de sus propias palabras.`);
   }
   L.push(`\nQUIÉN ES EL USUARIO Y SUS GUSTOS\n- Apodo: ${g.apodo || 'sin apodo'}\n- Personajes que usa: ${g.personajes || 'no lo dijo'}\n- Universos que le gustan: ${g.universos || 'no lo dijo'}\n- Su estilo: ${g.estilo || 'no lo dijo'}\n- Lo que no le gusta: ${g.odio || 'no lo dijo'}${g.notas ? `\n- Notas: ${g.notas}` : ''}`);
-  L.push(`\nREGLAS FIJAS DEL USUARIO (mandan siempre, y las instrucciones de su mensaje mandan sobre ellas)\n${RULES.map(r => '- ' + r).join('\n')}`);
+  L.push(`\nPREFERENCIAS DEL USUARIO PARA ESCRIBIR (si su mensaje pide otra cosa, sigue su mensaje)\n${RULES.map(r => '- ' + r).join('\n')}`);
   if (a.voice) L.push(`\nVOZ PARA ACCIONES Y DEBUNKEOS\n${VOICE}`);
   const combat = [];
   if (c.mine) combat.push(`Personaje del usuario: ${c.mine}`);
@@ -1244,13 +1249,13 @@ function buildSystem(a, kinds = []) {
   if (c.limit > 0) combat.push(`Límite: máximo ${c.limit} caracteres por respuesta contando espacios. Ajusta el largo antes de responder.`);
   if (c.extra) combat.push(`Instrucciones del usuario para este chat: ${c.extra}`);
   if (combat.length) L.push(`\nCOMBATE ACTUAL\n${combat.join('\n')}`);
-  const files = allFiles().filter(f => reads(f, a.id) && f.text);
+  const files = light ? [] : allFiles().filter(f => reads(f, a.id) && f.text);
   if (files.length) {
     let budget = 70000; const parts = [];
     for (const f of files) { if (budget <= 0) break; const t = f.text.slice(0, Math.min(16000, budget)); budget -= t.length; parts.push(`--- ${f.name} ---\n${t}`); }
     L.push(`\nARCHIVOS Y FICHAS QUE PUEDES LEER (son la base de los personajes y de cómo juega el usuario)\n${parts.join('\n\n')}`);
   }
-  if (g.memoria) {
+  if (g.memoria && !light) {
     const mem = [];
     for (const other of agents()) {
       if (other.id === a.id) continue;
@@ -1277,13 +1282,13 @@ function msgContent(m) {
   }
   return t.trim();
 }
-function buildTurns(a, excludeId, kinds = []) {
+function buildTurns(a, excludeId, kinds = [], light = false) {
   const hist = chatOf(a.id).filter(m => m.id !== excludeId && !m.pending && (m.role === 'user' || (m.role === 'agent' && m.text && !m.error)));
   let turns = hist.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: msgContent(m) })).filter(t => t.content);
   let size = turns.reduce((n, t) => n + t.content.length, 0);
   while (turns.length > 1 && size > 110000) { size -= turns[0].content.length; turns.shift(); }
   while (turns.length && turns[0].role !== 'user') turns.shift();
-  return [{ role: 'user', content: buildSystem(a, kinds) }, ...turns];
+  return [{ role: 'user', content: buildSystem(a, kinds, light) }, ...turns];
 }
 
 /* ---------------- talking to an agent ---------------- */
@@ -1300,7 +1305,7 @@ const ERR = {
   prompt_too_large: 'El chat y los archivos son demasiado largos. Desactiva algunos archivos o vacía el chat.',
   empty_completion: 'El agente no escribió nada. Cambia un poco el mensaje y reenvíalo.',
   tools_unavailable: 'Esta vista no puede usar herramientas. Apágalas tocando su chip y reenvía.',
-  refused: 'El agente no quiso responder a eso. Cambia lo que le pides.',
+  refused: 'Un filtro automático bloqueó la respuesta dos veces. A veces pasa por error: toca Reintentar, o cambia un poco el mensaje.',
 };
 const RETRYABLE = new Set(['rate_limited', 'session_expired', 'upstream_error', 'empty_completion', 'timeout']);
 async function generate(agentId, images) {
@@ -1329,26 +1334,36 @@ async function generate(agentId, images) {
   });
   let raw = '', mark = 0;
   const tools = kinds.length ? buildTools(kinds, reply, agentId, () => { mark = raw.length; reply.text = ''; }) : null;
+  const ask = light => sample(buildTurns(a, reply.id, light ? [] : kinds, light), {
+    cache: false, signal: ctl.signal, modelTier: cfg(agentId).tier || 'default',
+    ...(images?.length ? { images } : {}),
+    ...(tools && !light ? { tools } : {}),
+    onText: ({ text }) => {
+      raw = text;
+      reply.text = raw.slice(mark).replace(/^\s+/, '');
+      if (reply.text) reply.activity = null;
+      if (!started) { started = true; list.forEach(m => { if (m.role === 'user') m.read = true; }); if (state.open === agentId) renderChat(); }
+      streamUpdate(agentId, reply);
+    },
+  });
   try {
-    const res = await sample(buildTurns(a, reply.id, kinds), {
-      cache: false, signal: ctl.signal, modelTier: cfg(agentId).tier || 'default',
-      ...(images?.length ? { images } : {}),
-      ...(tools ? { tools } : {}),
-      onText: ({ text }) => {
-        raw = text;
-        reply.text = raw.slice(mark).replace(/^\s+/, '');
-        if (reply.text) reply.activity = null;
-        if (!started) { started = true; list.forEach(m => { if (m.role === 'user') m.read = true; }); if (state.open === agentId) renderChat(); }
-        streamUpdate(agentId, reply);
-      },
-    });
+    let res;
+    try { res = await ask(false); }
+    catch (e) {
+      if (e?.code !== 'refused') throw e;
+      /* a block on harmless text: try once more without guides, files, memory or tools */
+      raw = ''; mark = 0; reply.text = ''; reply.activity = null; reply.steps = []; reply.sources = [];
+      streamUpdate(agentId, reply);
+      res = await ask(true);
+      reply.note = 'El primer intento fue bloqueado por un filtro automático; respondió sin guías, archivos ni memoria.';
+    }
     reply.text = res.text.slice(mark).trim() || res.text.trim();
     if (res.truncated) reply.note = 'Se cortó por largo. Escríbele "sigue" para que termine.';
   } catch (e) {
     const code = e?.code || 'upstream_error';
     if (e?.text) e.text = e.text.slice(mark).trim();
     if (code === 'cancelled') { reply.text = e.text || ''; reply.note = 'Detuviste la respuesta.'; }
-    else if (code === 'refused') { reply.text = ''; reply.error = ERR.refused; }
+    else if (code === 'refused') { reply.text = ''; reply.error = ERR.refused; reply.retry = true; }
     else { reply.text = e?.text || ''; reply.error = ERR[code] || 'Se cortó la conexión con el agente. Toca Reintentar.'; reply.retry = RETRYABLE.has(code) || !ERR[code]; }
   }
   reply.pending = false; reply.activity = null;
@@ -1522,7 +1537,7 @@ function renderMenu() {
   menu.innerHTML = item('doc', 262, 'doc', 'Documento<small>.txt .md</small>')
     + item('img', 330, 'img', `Imagen<small>${canImg ? 'jpg png' : 'no disponible'}</small>`, canImg ? '' : 'aria-disabled="true"')
     + toolItem('seq') + toolItem('wiki')
-    + `<p class="menu-note">Las herramientas que actives brillan encima del mensaje. Tócalas ahí para apagarlas.</p>`;
+    + `<p class="menu-note">Al activar una herramienta te pide su permiso. Brilla encima del mensaje: tócala ahí para apagarla.</p>`;
 }
 function setMenu(open) {
   const menu = $('#attachMenu');
@@ -1530,15 +1545,39 @@ function setMenu(open) {
   $('#btnClip').setAttribute('aria-expanded', String(open));
   if (open) { renderMenu(); menu.querySelector('.menu-item')?.focus(); }
 }
-function toggleTool(k) {
-  const id = state.open; if (!id) return;
-  const t = { ...(cfg(id).tools || {}) };
-  const st = toolState(k);
-  if (!t[k] && st !== 'ok' && st !== 'checking') { toast(TOOL_STATE_COPY[st](TOOLS[k].name)); return; }
-  t[k] = !t[k];
-  setCfg(id, { tools: t });
+function setTool(id, k, on) {
+  setCfg(id, { tools: { ...(cfg(id).tools || {}), [k]: on } });
   renderToolRow(); renderMenu();
-  toast(t[k] ? `${TOOLS[k].name} activado` : `${TOOLS[k].name} apagado`);
+  if (state.drawer && state.open === id) renderDrawer();
+}
+async function toggleTool(k) {
+  const id = state.open; if (!id) return;
+  const on = !(cfg(id).tools || {})[k];
+  const st = toolState(k);
+  if (on && st !== 'ok' && st !== 'checking') { toast(TOOL_STATE_COPY[st](TOOLS[k].name)); return; }
+  setTool(id, k, on);
+  if (!on) { toast(`${TOOLS[k].name} apagado`); return; }
+  toast(`${TOOLS[k].name} activado`);
+  if (!perms) return;
+  const name = 'mcp:' + TOOLS[k].server;
+  let res = 'prompt';
+  try { res = (await perms.request([name]))[name] || 'prompt'; } catch {}
+  if (res === 'denied') { toolAvail[k] = 'denied'; setTool(id, k, false); toast(TOOL_STATE_COPY.denied(TOOLS[k].name)); }
+  else if (res === 'unavailable') { setTool(id, k, false); toast(`${TOOLS[k].name} no está disponible: revisa en claude.ai › Ajustes › Conectores que esté conectado.`); }
+  else if (res === 'granted') toast(`${TOOLS[k].name} activado y con permiso`);
+}
+async function openPermissions() {
+  if (!perms) { toast('Abre el menú Permisos del artefacto, arriba en claude.ai.'); return; }
+  try { await perms.manage(); } catch { toast('Abre el menú Permisos del artefacto, arriba en claude.ai.'); return; }
+  try {
+    const st = await perms.state();
+    for (const k of Object.keys(TOOLS)) {
+      const v = st['mcp:' + TOOLS[k].server];
+      if (v === 'denied') toolAvail[k] = 'denied';
+      else if (v === 'granted' || v === 'prompt') { if (toolAvail[k] === 'denied') toolAvail[k] = 'ok'; }
+    }
+  } catch {}
+  renderToolRow(); renderMenu(); if (state.drawer) renderDrawer();
 }
 function renderToolRow() {
   const row = $('#toolRow'); if (!row) return;
@@ -1718,6 +1757,7 @@ $('#btnCloseDrawer').addEventListener('click', () => { state.drawer = false; $('
 
 $('#drawerBody').addEventListener('click', e => {
   const id = state.open; const t = e.target;
+  if (t.closest('[data-perms]')) { openPermissions(); return; }
   const mode = t.closest('[data-mode]'); if (mode) { setCfg(id, { mode: mode.dataset.mode }); renderDrawer(); renderHead(); return; }
   const lim = t.closest('[data-limit]'); if (lim) { setCfg(id, { limit: +lim.dataset.limit }); renderDrawer(); renderChat(); return; }
   const tier = t.closest('[data-tier]'); if (tier) { setCfg(id, { tier: tier.dataset.tier }); renderDrawer(); return; }
@@ -1726,7 +1766,7 @@ $('#drawerBody').addEventListener('click', e => {
 $('#drawerBody').addEventListener('change', e => {
   const t = e.target; const id = state.open;
   if (t.dataset.fscope) { const f = allFiles().find(x => x.id === t.dataset.fscope); if (f) setFileScope(f, id, t.checked); }
-  if (t.dataset.toolSwitch) { const k = t.dataset.toolSwitch; if (!!(cfg(id).tools || {})[k] !== t.checked) toggleTool(k); t.checked = !!(cfg(id).tools || {})[k]; }
+  if (t.dataset.toolSwitch) { const k = t.dataset.toolSwitch; if (!!(cfg(id).tools || {})[k] !== t.checked) toggleTool(k).then(() => { t.checked = !!(cfg(id).tools || {})[k]; }); }
   if (t.id === 'd-limit') { setCfg(id, { limit: Math.max(0, parseInt(t.value, 10) || 0) }); renderDrawer(); renderChat(); }
 });
 let cfgTimer;
