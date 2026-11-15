@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "br-revisor": {
+      "command": "node",
+      "args": ["mcp-revisor/src/server.js"]
+    }
+  }
+}
