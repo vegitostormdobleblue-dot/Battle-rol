@@ -13,7 +13,7 @@ import {
   ordenarPorSeveridad,
   resumir,
   veredicto,
-  JUSTIFICACION,
+  CAUSA,
 } from './texto.js';
 
 const MAX_POR_REGLA = 3;
@@ -202,7 +202,7 @@ const REGLAS = [
       'Quita el "no puede esquivar" y explica la propiedad del ataque que lo vuelve difícil de evitar, para que el rival tenga que contestarla.',
     detectar(ctx) {
       return buscar(ctx.oraciones, AUTOHIT, { omitirCondicionales: true }).map(({ oracion }) =>
-        JUSTIFICACION.test(oracion.norm)
+        CAUSA.test(oracion.norm)
           ? {
               fragmentos: [oracion.original],
               severidad: 'sugerencia',

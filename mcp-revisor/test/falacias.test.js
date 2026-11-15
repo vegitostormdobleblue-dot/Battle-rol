@@ -130,3 +130,9 @@ test('hallazgos ordenados de más a menos grave', () => {
 test('"anula todos los conceptos posibles" (ejemplo de la guía) no es efecto absoluto', () => {
   assert.ok(!reglas('Su ataque anula todos los conceptos posibles y ataca la raíz ontológica.').includes('efecto_absoluto_sin_especificar'));
 });
+
+test('"por lo que" es consecuencia, no explica cómo se trasciende ni por qué no se puede esquivar', () => {
+  const r = revisarFalacias('Makima trasciende el tiempo, por lo que el rival no puede esquivar.');
+  assert.ok(r.hallazgos.some((h) => h.regla === 'trascendencia_sin_mecanismo'));
+  assert.equal(r.hallazgos.find((h) => h.regla === 'autohit').severidad, 'grave');
+});

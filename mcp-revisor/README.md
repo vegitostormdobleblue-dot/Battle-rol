@@ -63,7 +63,8 @@ los hombres de paja…
 
 ## Instalación
 
-Hace falta Node.js 18 o más nuevo.
+Hace falta Node.js 18 o más nuevo. El servidor **no tiene dependencias**: `npm install` solo
+hace falta para correr los tests y generar el archivo de Cloudflare.
 
 ```bash
 cd mcp-revisor
@@ -74,7 +75,7 @@ npm install
 npm test
 ```
 
-## Conectarlo
+## Usarlo en tu computadora (stdio)
 
 **Claude Code dentro de este repo:** el archivo `.mcp.json` de la raíz ya lo registra como
 `br-revisor`. Claude Code lo detecta al abrir el repo y pide aprobarlo la primera vez.
@@ -98,20 +99,75 @@ claude mcp add br-revisor -- node /ruta/a/Battle-rol/mcp-revisor/src/server.js
 }
 ```
 
-El servidor funciona por stdio, así que corre en la misma máquina que Claude. Para usarlo como
-conector en claude.ai (web o móvil) tendría que estar publicado como servidor HTTP remoto, y eso
-este paquete todavía no lo incluye.
+## Publicarlo en Cloudflare Workers
+
+Así queda como conector en claude.ai (web, escritorio y móvil). El Worker es gratuito dentro del
+plan Free de Cloudflare y no guarda nada: cada pedido se revisa y se responde.
+
+### Opción A: desde el panel, pegando un archivo
+
+1. Entra a Cloudflare, ve a **Workers & Pages → Create** y empieza con la plantilla *Hello World*. Ponle de nombre `br-revisor` y pulsa **Deploy**.
+2. Pulsa **Edit code**, borra todo el contenido de `worker.js` y pega el de
+   [`cloudflare/br-revisor-worker.js`](cloudflare/br-revisor-worker.js) completo.
+3. Pulsa **Deploy**.
+4. Abre `https://br-revisor.<tu-subdominio>.workers.dev/` en el navegador. Tiene que mostrar
+   "Revisor de Battle Rol" y la URL del conector.
+
+### Opción B: con la CLI (wrangler)
+
+```bash
+cd mcp-revisor
+```
+
+```bash
+npx wrangler login
+```
+
+```bash
+npx wrangler deploy
+```
+
+`wrangler.toml` ya apunta a `cloudflare/worker.js`. Para probarlo en local antes de subirlo:
+`npx wrangler dev`, que queda en `http://localhost:8787/mcp`.
+
+### Agregarlo como conector en claude.ai
+
+1. Ve a <https://claude.ai/customize/connectors> y pulsa **Add custom connector**.
+2. Nombre: `br-revisor`. URL: `https://br-revisor.<tu-subdominio>.workers.dev/mcp`. Tiene que terminar en `/mcp`.
+3. Guárdalo y actívalo en el chat (o empieza una sesión nueva de Claude Code en la nube: los conectores se leen al iniciar).
+
+> El endpoint es público y no pide login: cualquiera que tenga la URL puede usar el revisor.
+> Como solo lee el texto que le mandan y no guarda nada, el único riesgo es que alguien gaste tu
+> cuota gratuita de Workers (100 000 pedidos al día).
+
+### Si cambias las reglas
+
+Edita `src/` y regenera el archivo para el panel:
+
+```bash
+npm run build:worker
+```
+
+Los tests fallan si `cloudflare/br-revisor-worker.js` quedó desactualizado respecto de `src/`.
+Después vuelve a pegarlo en el panel (opción A) o corre `npx wrangler deploy` (opción B).
 
 ## Estructura
 
 ```
 src/
-  server.js     registro de las dos herramientas MCP (stdio)
-  contenido.js  revisor de contenido
-  falacias.js   revisor de falacias
-  formato.js    informe en Markdown
-  texto.js      normalización, oraciones y ayudantes compartidos
-test/           tests con node:test
+  contenido.js     revisor de contenido
+  falacias.js      revisor de falacias
+  formato.js       informe en Markdown
+  texto.js         normalización, oraciones y ayudantes compartidos
+  herramientas.js  definición de las dos herramientas (esquemas y validación)
+  protocolo.js     protocolo MCP (JSON-RPC), compartido por stdio y Cloudflare
+  server.js        transporte stdio (Claude Code / Claude Desktop)
+cloudflare/
+  worker.js              transporte HTTP para Workers (lo usa wrangler)
+  br-revisor-worker.js   lo mismo en un solo archivo, para pegar en el panel (generado)
+scripts/construir-worker.mjs   genera br-revisor-worker.js
+wrangler.toml                  configuración para `npx wrangler deploy`
+test/                          tests con node:test y el cliente MCP oficial
 ```
 
 Para agregar una falacia nueva, suma un objeto al arreglo `REGLAS` de `src/falacias.js` (con `id`,

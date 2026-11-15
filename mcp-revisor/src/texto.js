@@ -4,7 +4,7 @@
 export function normalizar(texto) {
   return texto
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/\p{M}/gu, '')
     .toLowerCase();
 }
 
@@ -50,15 +50,21 @@ export function esCondicional(norm, inicio, ventana = 40) {
   return /\b(si|en caso de que|de no)\b/.test(previoEnClausula(norm, inicio, ventana));
 }
 
-/** Conectores que indican que el texto explica el por qué o el cómo. */
-export const JUSTIFICACION =
-  /\b(porque|ya que|debido a|dado que|puesto que|pues|mediante|a traves de|gracias a|por medio de|lo que (le |me |te )?permite|por lo (tanto|que)|(ya no|no) depende|al [a-z]+(ar|er|ir)(se|lo|la|le|los|las)?)\b/;
+/** Conectores que dan la causa o el mecanismo ("porque", "mediante", "al + verbo"). */
+export const CAUSA =
+  /\b(porque|ya que|debido a|dado que|puesto que|pues|mediante|a traves de|gracias a|por medio de|lo que (le |me |te )?permite|(ya no|no) depende|al [a-z]+(ar|er|ir)(se|lo|la|le|los|las)?)\b/;
+
+/**
+ * Cualquier razonamiento: la causa o también la consecuencia ("por lo tanto", "por lo que").
+ * Sirve para ver si el texto argumenta; para ver si algo está explicado se usa CAUSA.
+ */
+export const JUSTIFICACION = new RegExp(`${CAUSA.source}|\\bpor lo (tanto|que)\\b`);
 
 /** La oración siguiente arranca explicando la anterior ("Esto se debe a…", "Ya que…"). */
 const JUSTIFICA_LO_ANTERIOR = /^(esto|eso|lo anterior|ya que|porque|debido|dado que|puesto que|la razon|se debe|funciona porque)\b/;
 
 export function estaJustificada(oraciones, indice) {
-  if (JUSTIFICACION.test(oraciones[indice].norm)) return true;
+  if (CAUSA.test(oraciones[indice].norm)) return true;
   const siguiente = oraciones[indice + 1];
   return Boolean(siguiente && JUSTIFICA_LO_ANTERIOR.test(siguiente.norm));
 }
