@@ -1,0 +1,5 @@
+# Despliegue con la CLI de Cloudflare: `npx wrangler deploy` desde esta carpeta.
+# Si prefieres el panel web, pega cloudflare/br-revisor-worker.js en el editor y no necesitas este archivo.
+name = "br-revisor"
+main = "cloudflare/worker.js"
+compatibility_date = "2025-09-01"
