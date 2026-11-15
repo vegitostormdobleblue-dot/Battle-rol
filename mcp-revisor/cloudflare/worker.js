@@ -1,6 +1,12 @@
 // Servidor MCP "br-revisor" para Cloudflare Workers (transporte Streamable HTTP, sin estado).
 //
 // Endpoint: POST https://<tu-worker>.workers.dev/mcp
+// Con el secreto CLAVE_ACCESO configurado, el endpoint pasa a ser /mcp/<CLAVE_ACCESO>.
+//
+// Secretos (Settings > Variables and Secrets en el panel de Cloudflare):
+//   CLAVE_ACCESO       protege la URL. Elige una clave larga y difícil de adivinar.
+//   ANTHROPIC_API_KEY  habilita revisar_a_fondo (el agente). Solo se usa si también
+//                      hay CLAVE_ACCESO, para que nadie más pueda gastar tu crédito.
 //
 // Este archivo importa la lógica de ../src. Para pegarlo en el editor del panel de
 // Cloudflare usa br-revisor-worker.js, que es todo en un solo archivo
@@ -31,22 +37,29 @@ function sinCuerpo(status, encabezados = {}) {
   return new Response(null, { status, headers: { ...CORS, ...encabezados } });
 }
 
-function portada(origen) {
+function portada(origen, protegido, conAgente) {
+  const ruta = protegido ? `${RUTA_MCP}/<tu CLAVE_ACCESO>` : RUTA_MCP;
   const texto =
     `${INFO_SERVIDOR.title} (${INFO_SERVIDOR.name} ${INFO_SERVIDOR.version})\n\n` +
     'Servidor MCP para revisar contenido y falacias en textos de Battle Rol.\n' +
-    `Agrégalo como conector con esta URL: ${origen}${RUTA_MCP}\n`;
+    `Agrégalo como conector con esta URL: ${origen}${ruta}\n` +
+    `Agente (revisar_a_fondo): ${conAgente ? 'activado' : 'desactivado'}\n`;
   return new Response(texto, { headers: { 'Content-Type': 'text/plain; charset=utf-8', ...CORS } });
 }
 
 export default {
-  async fetch(request) {
+  async fetch(request, env = {}) {
     const url = new URL(request.url);
+    const clave = env.CLAVE_ACCESO || '';
+    const contexto = { apiKey: clave ? env.ANTHROPIC_API_KEY : undefined };
+    const rutaMcp = clave ? `${RUTA_MCP}/${clave}` : RUTA_MCP;
 
     if (request.method === 'OPTIONS') return sinCuerpo(204);
-    if (url.pathname === '/' && request.method === 'GET') return portada(url.origin);
-    if (url.pathname !== RUTA_MCP && url.pathname !== `${RUTA_MCP}/`) {
-      return json({ error: `No encontrado. El endpoint MCP es ${RUTA_MCP}.` }, 404);
+    if (url.pathname === '/' && request.method === 'GET') {
+      return portada(url.origin, Boolean(clave), Boolean(contexto.apiKey));
+    }
+    if (url.pathname !== rutaMcp && url.pathname !== `${rutaMcp}/`) {
+      return json({ error: 'No encontrado. Revisa la URL del conector.' }, 404);
     }
 
     // Sin estado: no hay stream SSE que abrir con GET ni sesión que cerrar con DELETE.
@@ -60,7 +73,7 @@ export default {
     const texto = await request.text();
     if (texto.length > MAX_CARACTERES_CUERPO) return json(fallo(null, -32600, 'Mensaje demasiado grande.'), 413);
 
-    const respuesta = procesarTexto(texto);
+    const respuesta = await procesarTexto(texto, contexto);
     if (respuesta === null) return sinCuerpo(202); // solo notificaciones
     return json(respuesta, esErrorDeParseo(respuesta) ? 400 : 200);
   },

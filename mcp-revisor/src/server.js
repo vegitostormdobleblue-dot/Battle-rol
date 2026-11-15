@@ -8,9 +8,12 @@ import { procesarTexto } from './protocolo.js';
 
 const lineas = createInterface({ input: process.stdin, crlfDelay: Infinity });
 
-lineas.on('line', (linea) => {
+// Con ANTHROPIC_API_KEY en el entorno se habilita revisar_a_fondo (el agente).
+const contexto = { apiKey: process.env.ANTHROPIC_API_KEY };
+
+lineas.on('line', async (linea) => {
   if (!linea.trim()) return;
-  const respuesta = procesarTexto(linea);
+  const respuesta = await procesarTexto(linea, contexto);
   if (respuesta) process.stdout.write(`${JSON.stringify(respuesta)}\n`);
 });
 

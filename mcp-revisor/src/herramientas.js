@@ -1,6 +1,8 @@
-// Definición de las dos herramientas MCP, compartida por el servidor local (stdio)
-// y el Worker de Cloudflare (HTTP). Sin dependencias: corre en Node y en Workers.
+// Definición de las herramientas MCP, compartida por el servidor local (stdio) y el
+// Worker de Cloudflare (HTTP). Las dos de patrones no tienen dependencias; revisar_a_fondo
+// usa el SDK de Anthropic y solo aparece si hay una API key.
 
+import { ErrorDelAgente, revisarAFondo } from './agente.js';
 import { revisarContenido } from './contenido.js';
 import { revisarFalacias } from './falacias.js';
 import { formatearContenido, formatearFalacias } from './formato.js';
@@ -69,6 +71,8 @@ const SALIDA_COMUN = {
 const REQUERIDOS_COMUNES = ['revisor', 'modalidad', 'veredicto', 'resumen', 'hallazgos', 'revision_manual'];
 
 const ANOTACIONES = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
+// El agente consulta la API de Anthropic y su respuesta puede variar entre llamadas.
+const ANOTACIONES_AGENTE = { readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: true };
 
 // --- Validación de argumentos ---------------------------------------------
 
@@ -159,29 +163,69 @@ const HERRAMIENTAS = [
       return { texto: formatearFalacias(resultado), datos: resultado };
     },
   },
+  {
+    name: 'revisar_a_fondo',
+    title: 'Revisión a fondo de BR (agente)',
+    description:
+      'Revisión completa de un texto de Battle Rol hecha por un agente (Claude) que conoce las guías del servidor. ' +
+      'Pasa los dos revisores por patrones, descarta sus falsos positivos, busca incoherencias que los patrones no ven ' +
+      'y entrega un veredicto (pasa / pasa con cambios / no pasa) con los problemas citados y cómo corregirlos. ' +
+      'Tarda hasta un par de minutos y cada llamada tiene costo: úsala cuando el usuario pida una revisión completa ' +
+      'o un veredicto, y muestra el resultado tal cual.',
+    inputSchema: {
+      type: 'object',
+      properties: { texto: ENTRADA_TEXTO, modalidad: ENTRADA_MODALIDAD, tipo: ENTRADA_TIPO },
+      required: ['texto'],
+    },
+    annotations: ANOTACIONES_AGENTE,
+    requiereAgente: true,
+    async ejecutar(args, contexto) {
+      const veredicto = await revisarAFondo(
+        {
+          texto: leerTexto(args),
+          modalidad: leerOpcion(args, 'modalidad', MODALIDADES, 'argumentativo'),
+          tipo: leerOpcion(args, 'tipo', TIPOS, 'ataque'),
+        },
+        { apiKey: contexto.apiKey, fetch: contexto.fetch },
+      );
+      return { texto: veredicto };
+    },
+  },
 ];
 
-/** Lo que se publica en tools/list (sin la función ejecutar). */
-export function listarHerramientas() {
-  return HERRAMIENTAS.map(({ ejecutar, ...definicion }) => definicion);
+/** revisar_a_fondo solo existe si el contexto trae una API key de Anthropic. */
+function disponibles(contexto = {}) {
+  return HERRAMIENTAS.filter((h) => !h.requiereAgente || Boolean(contexto.apiKey));
 }
 
-export function existeHerramienta(nombre) {
-  return HERRAMIENTAS.some((h) => h.name === nombre);
+/** Lo que se publica en tools/list (sin las propiedades internas). */
+export function listarHerramientas(contexto) {
+  return disponibles(contexto).map(({ ejecutar, requiereAgente, ...definicion }) => definicion);
 }
+
+export function existeHerramienta(nombre, contexto) {
+  return disponibles(contexto).some((h) => h.name === nombre);
+}
+
 
 /**
- * Ejecuta una herramienta y devuelve el resultado de tools/call. Si los argumentos
- * son inválidos devuelve isError: true, para que el modelo pueda corregirlos y reintentar.
+ * Ejecuta una herramienta y devuelve el resultado de tools/call. Los argumentos inválidos
+ * y los errores del agente vuelven con isError: true, para que el modelo avise o reintente.
  */
-export function llamarHerramienta(nombre, args = {}) {
-  const herramienta = HERRAMIENTAS.find((h) => h.name === nombre);
+export async function llamarHerramienta(nombre, args = {}, contexto = {}) {
+  const herramienta = disponibles(contexto).find((h) => h.name === nombre);
   if (!herramienta) throw new Error(`Herramienta desconocida: ${nombre}`);
   try {
-    const { texto, datos } = herramienta.ejecutar(args && typeof args === 'object' ? args : {});
-    return { content: [{ type: 'text', text: texto }], structuredContent: datos };
+    const entrada = args && typeof args === 'object' ? args : {};
+    const { texto, datos } = await herramienta.ejecutar(entrada, contexto);
+    return { content: [{ type: 'text', text: texto }], ...(datos ? { structuredContent: datos } : {}) };
   } catch (error) {
-    if (!(error instanceof ArgumentoInvalido)) throw error;
-    return { content: [{ type: 'text', text: `Argumentos inválidos: ${error.message}` }], isError: true };
+    if (error instanceof ArgumentoInvalido) {
+      return { content: [{ type: 'text', text: `Argumentos inválidos: ${error.message}` }], isError: true };
+    }
+    if (error instanceof ErrorDelAgente) {
+      return { content: [{ type: 'text', text: error.message }], isError: true };
+    }
+    throw error;
   }
 }

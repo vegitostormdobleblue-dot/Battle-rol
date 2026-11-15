@@ -41,6 +41,21 @@ Busca falacias y auto-nerfs:
 
 Parámetros: `texto` y `modalidad`.
 
+### `revisar_a_fondo` (el agente)
+
+Aquí el MCP llama a un agente. La herramienta pasa primero los dos revisores por patrones y
+después le manda a Claude (modelo `claude-opus-5-5`, por la API de Anthropic) el texto, tus
+guías y lo que encontraron los patrones. El agente descarta falsos positivos, busca lo que los
+patrones no ven (incoherencias, conceptos mal usados) y devuelve un veredicto: pasa, pasa con
+cambios o no pasa, con los problemas citados y cómo corregirlos.
+
+- Solo aparece si el servidor tiene una API key de Anthropic. En Cloudflare, además, hace falta
+  `CLAVE_ACCESO` (ver más abajo), para que nadie más pueda gastar tu crédito.
+- El modelo del agente lo fija el servidor, no depende del modelo del chat.
+- Cada llamada cuesta. Se estima entre 5 y 10 centavos de dólar con Opus 5.5 y se cobra a tu
+  API key de la Claude Console, aparte de la suscripción de claude.ai.
+- Tarda de segundos a un par de minutos. claude.ai espera hasta 240 s por herramienta.
+
 ### Modalidades
 
 | Modalidad | Cómo cambia la revisión |
@@ -63,8 +78,9 @@ los hombres de paja…
 
 ## Instalación
 
-Hace falta Node.js 18 o más nuevo. El servidor **no tiene dependencias**: `npm install` solo
-hace falta para correr los tests y generar el archivo de Cloudflare.
+Hace falta Node.js 18 o más nuevo. Los dos revisores por patrones no tienen dependencias. `npm install`
+hace falta para el agente en local (`@anthropic-ai/sdk`), para correr los tests y para generar el
+archivo de Cloudflare.
 
 ```bash
 cd mcp-revisor
@@ -130,6 +146,25 @@ npx wrangler deploy
 `wrangler.toml` ya apunta a `cloudflare/worker.js`. Para probarlo en local antes de subirlo:
 `npx wrangler dev`, que queda en `http://localhost:8787/mcp`.
 
+### Activar el agente
+
+En el Worker, ve a **Settings → Variables and Secrets** y agrega dos secretos (tipo *Secret*):
+
+| Nombre | Valor |
+|---|---|
+| `CLAVE_ACCESO` | Una clave larga e inventada, por ejemplo 30 letras y números al azar. |
+| `ANTHROPIC_API_KEY` | Tu API key de la [Claude Console](https://platform.claude.com/). |
+
+Con `CLAVE_ACCESO` configurada, la URL del conector pasa a ser
+`https://br-revisor.<tu-subdominio>.workers.dev/mcp/<CLAVE_ACCESO>` y `/mcp` sola deja de
+responder. Si ya tenías el conector agregado, cámbiale la URL. La portada (`/`) dice si el
+agente está activado, sin mostrar la clave.
+
+Con la CLI: `npx wrangler secret put CLAVE_ACCESO` y `npx wrangler secret put ANTHROPIC_API_KEY`.
+
+Para usarlo en tu computadora (stdio), basta con tener `ANTHROPIC_API_KEY` en el entorno y haber
+corrido `npm install`.
+
 ### Agregarlo como conector en claude.ai
 
 1. Ve a <https://claude.ai/customize/connectors> y pulsa **Add custom connector**.
@@ -159,13 +194,16 @@ src/
   falacias.js      revisor de falacias
   formato.js       informe en Markdown
   texto.js         normalización, oraciones y ayudantes compartidos
-  herramientas.js  definición de las dos herramientas (esquemas y validación)
+  herramientas.js  definición de las herramientas (esquemas y validación)
+  agente.js        revisar_a_fondo: llama a Claude con las guías y los hallazgos
+  guias.js         las guías de la raíz del repo, para el agente (generado)
   protocolo.js     protocolo MCP (JSON-RPC), compartido por stdio y Cloudflare
   server.js        transporte stdio (Claude Code / Claude Desktop)
 cloudflare/
   worker.js              transporte HTTP para Workers (lo usa wrangler)
   br-revisor-worker.js   lo mismo en un solo archivo, para pegar en el panel (generado)
-scripts/construir-worker.mjs   genera br-revisor-worker.js
+scripts/construir-worker.mjs   genera br-revisor-worker.js (minificado, incluye el SDK)
+scripts/generar-guias.mjs      genera src/guias.js
 wrangler.toml                  configuración para `npx wrangler deploy`
 test/                          tests con node:test y el cliente MCP oficial
 ```

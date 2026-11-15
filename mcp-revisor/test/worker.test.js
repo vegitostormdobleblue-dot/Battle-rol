@@ -83,3 +83,57 @@ test('HTTP: rechaza cuerpos demasiado grandes', async () => {
   const r = await post({ jsonrpc: '2.0', id: 1, method: 'ping', relleno: 'x'.repeat(300 * 1024) });
   assert.equal(r.status, 413);
 });
+
+const ENV = { CLAVE_ACCESO: 'clave-de-prueba-larga', ANTHROPIC_API_KEY: 'sk-prueba' };
+const postEn = (ruta, cuerpo, env) =>
+  worker.fetch(
+    new Request(`${BASE}${ruta}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
+      body: JSON.stringify(cuerpo),
+    }),
+    env,
+  );
+const listar = async (ruta, env) =>
+  (await (await postEn(ruta, { jsonrpc: '2.0', id: 1, method: 'tools/list' }, env)).json()).result.tools.map((t) => t.name);
+
+test('CLAVE_ACCESO: /mcp deja de responder y el endpoint pasa a /mcp/<clave>', async () => {
+  assert.equal((await postEn('/mcp', { jsonrpc: '2.0', id: 1, method: 'ping' }, ENV)).status, 404);
+  assert.equal((await postEn('/mcp/otra-clave', { jsonrpc: '2.0', id: 1, method: 'ping' }, ENV)).status, 404);
+  assert.deepEqual(await listar('/mcp/clave-de-prueba-larga', ENV), ['revisar_contenido', 'revisar_falacias', 'revisar_a_fondo']);
+  const portada = await (await worker.fetch(new Request(`${BASE}/`), ENV)).text();
+  assert.doesNotMatch(portada, /clave-de-prueba-larga/);
+  assert.match(portada, /Agente \(revisar_a_fondo\): activado/);
+});
+
+test('sin CLAVE_ACCESO el agente no se activa aunque haya API key', async () => {
+  assert.deepEqual(await listar('/mcp', { ANTHROPIC_API_KEY: 'sk-prueba' }), ['revisar_contenido', 'revisar_falacias']);
+});
+
+test('el Worker llama al agente con el fetch del entorno', async () => {
+  const original = globalThis.fetch;
+  let cuerpoEnviado;
+  globalThis.fetch = async (url, init) => {
+    cuerpoEnviado = JSON.parse(init.body);
+    return new Response(
+      JSON.stringify({
+        id: 'msg_prueba', type: 'message', role: 'assistant', model: 'claude-opus-5-5',
+        content: [{ type: 'text', text: '**Veredicto:** pasa.' }],
+        stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 },
+      }),
+      { headers: { 'content-type': 'application/json' } },
+    );
+  };
+  try {
+    const r = await postEn(
+      '/mcp/clave-de-prueba-larga',
+      { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'revisar_a_fondo', arguments: { texto: 'Bloquea el golpe con ambos brazos.' } } },
+      ENV,
+    );
+    const { result } = await r.json();
+    assert.equal(result.content[0].text, '**Veredicto:** pasa.');
+    assert.equal(cuerpoEnviado.model, 'claude-opus-5-5');
+  } finally {
+    globalThis.fetch = original;
+  }
+});
