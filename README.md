@@ -2,9 +2,6 @@
 
 Guías de Battle Rol (BR): `Battle rol-1` a `Battle-rol 4`.
 
-**Inicio de cada chat:** [`CLAUDE.md`](CLAUDE.md) tiene el recordatorio para cargar el proyecto «Battle rol»
-(https://claude.ai/artifact/HSyBhhsfV7QYSdrYXUqMmV), sus instrucciones y el contexto. La copia del proyecto está en [`proyecto/`](proyecto/).
-
 ## MCP revisor
 
 [`mcp-revisor/`](mcp-revisor/) es un servidor MCP con un único propósito: revisar textos de BR.
